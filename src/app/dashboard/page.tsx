@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const router = useRouter();
 
   const modules = [
     {
@@ -132,12 +132,13 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {modules.map((module) => (
-              <button
-                key={module.id}
-                onClick={() => window.location.href = `/dashboard/modules/${module.id}`}
-                className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
-              >
+              {modules.map((module) => (
+                <button
+                  key={module.id}
+                  type="button"
+                  onClick={() => router.push(`/dashboard/modules/${module.id}`)}
+                  className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
+                >
                 <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
                   {module.icon}
                 </div>

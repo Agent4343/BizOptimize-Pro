@@ -1,14 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { prompt, businessType, optimizationType } = body;
+type BusinessType = "construction" | "trucking" | "restaurant";
+type OptimizationType = "estimate" | "fleet" | "inventory";
 
-    // Simulate AI response for demo (replace with real OpenRouter call)
-    const mockResponses = {
-      construction: {
-        estimate: `# Construction Estimate Analysis
+type OptimizationRequestPayload = {
+  prompt?: string;
+  businessType?: BusinessType;
+  optimizationType?: OptimizationType;
+  metadata?: Record<string, string | number>;
+};
+
+const mockResponses: Record<BusinessType, Partial<Record<OptimizationType, string>>> = {
+  construction: {
+    estimate: `# Construction Estimate Analysis
 
 ## Project Cost Breakdown
 - **Total Project Cost**: $278,241 CAD
@@ -34,10 +38,10 @@ export async function POST(request: NextRequest) {
 - **Interior Finishing**: 5 weeks (August)
 - **Final**: 1 week (September)
 
-**Total Timeline: 19 weeks**`
-      },
-      trucking: {
-        fleet: `# Fleet Optimization Analysis
+**Total Timeline: 19 weeks**`,
+  },
+  trucking: {
+    fleet: `# Fleet Optimization Analysis
 
 ## Current Performance
 - **Monthly Fuel Cost**: $22,000
@@ -60,10 +64,10 @@ export async function POST(request: NextRequest) {
 ## ROI Analysis
 - **Investment Required**: $146,000
 - **Break-even**: 14 months
-- **3-Year ROI**: 221%`
-      },
-      restaurant: {
-        inventory: `# Restaurant Optimization Analysis
+- **3-Year ROI**: 221%`,
+  },
+  restaurant: {
+    inventory: `# Restaurant Optimization Analysis
 
 ## Current Metrics
 - **Food Cost**: 35% of revenue
@@ -85,45 +89,171 @@ export async function POST(request: NextRequest) {
 ## Implementation Timeline
 - **Week 1**: Install tracking systems
 - **Month 1**: Renegotiate supplier contracts
-- **Quarter 1**: Achieve 30% food cost target`
-      }
-    };
+- **Quarter 1**: Achieve 30% food cost target`,
+  },
+};
 
-    const defaultResponse = mockResponses[businessType as keyof typeof mockResponses]?.[optimizationType as keyof typeof mockResponses['construction']] || 
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as OptimizationRequestPayload;
+    const { prompt, businessType, optimizationType, metadata } = body;
+
+    if (!prompt || !businessType || !optimizationType) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "prompt, businessType, and optimizationType are required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const template =
+      mockResponses[businessType]?.[optimizationType] ||
       "Analysis completed. Optimization recommendations generated based on your business data.";
 
-    // Extract savings amount (mock calculation)
-    const savingsMatch = defaultResponse.match(/\$[\d,]+/g);
-    let estimatedSavings = 50000; // Default
-    if (savingsMatch) {
-      const amounts = savingsMatch.map(s => parseInt(s.replace(/[$,]/g, '')));
-      estimatedSavings = Math.max(...amounts);
-    }
+    const result = buildResponse(prompt, metadata, template);
+    const estimatedSavings = calculateSavings({
+      businessType,
+      metadata,
+      fallbackText: template,
+    });
 
     return NextResponse.json({
       success: true,
-      result: defaultResponse,
+      result,
       estimatedSavings,
       businessType,
-      optimizationType
+      optimizationType,
     });
-
   } catch (error) {
-    console.error('AI optimization error:', error);
+    console.error("AI optimization error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to generate optimization analysis' 
+      {
+        success: false,
+        error: "Failed to generate optimization analysis",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function GET() {
   return NextResponse.json({
-    endpoint: '/api/ai',
-    description: 'AI-powered business optimization API',
-    status: 'active'
+    endpoint: "/api/ai",
+    description: "AI-powered business optimization API",
+    status: "active",
   });
+}
+
+function buildResponse(
+  prompt: string,
+  metadata: Record<string, string | number> | undefined,
+  template: string,
+) {
+  const promptBlock = `## Prompt Summary\n${prompt}`;
+  const metadataEntries = Object.entries(metadata ?? {}).filter(
+    ([, value]) => value !== undefined && value !== null && value !== "",
+  );
+
+  const metadataBlock = metadataEntries.length
+    ? `## Inputs Provided\n${metadataEntries
+        .map(([key, value]) => `- **${humanizeKey(key)}**: ${value}`)
+        .join("\n")}`
+    : "";
+
+  return [promptBlock, metadataBlock, template].filter(Boolean).join("\n\n");
+}
+
+function humanizeKey(key: string) {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+function calculateSavings({
+  businessType,
+  metadata,
+  fallbackText,
+}: {
+  businessType: BusinessType;
+  metadata?: Record<string, string | number>;
+  fallbackText: string;
+}) {
+  const numericMetadata = normaliseNumericMetadata(metadata);
+
+  switch (businessType) {
+    case "construction": {
+      const budget =
+        numericMetadata.estimatedBudget ??
+        numericMetadata.projectBudget ??
+        (numericMetadata.squareFootage
+          ? numericMetadata.squareFootage * 190
+          : undefined);
+      if (budget) {
+        return Math.round(budget * 0.18);
+      }
+      break;
+    }
+    case "trucking": {
+      const monthlyFuelCost = numericMetadata.monthlyFuelCost;
+      const emptyMiles = numericMetadata.emptyMiles;
+      if (monthlyFuelCost) {
+        const baseSavings = monthlyFuelCost * 0.3 * 12;
+        if (typeof emptyMiles === "number") {
+          return Math.round(baseSavings * (1 + emptyMiles / 200));
+        }
+        return Math.round(baseSavings);
+      }
+      break;
+    }
+    case "restaurant": {
+      const monthlyRevenue = numericMetadata.monthlyRevenue;
+      const foodCostPercentage = numericMetadata.foodCostPercentage;
+      if (monthlyRevenue) {
+        const savingsRate =
+          typeof foodCostPercentage === "number"
+            ? Math.min(foodCostPercentage / 100, 0.35)
+            : 0.12;
+        return Math.round(monthlyRevenue * savingsRate);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return extractMaxDollarAmount(fallbackText) ?? 50000;
+}
+
+function normaliseNumericMetadata(
+  metadata?: Record<string, string | number>,
+) {
+  return Object.entries(metadata ?? {}).reduce<Record<string, number>>(
+    (acc, [key, value]) => {
+      const numericValue =
+        typeof value === "number" ? value : Number(value?.toString());
+      if (!Number.isNaN(numericValue)) {
+        acc[key] = numericValue;
+      }
+      return acc;
+    },
+    {},
+  );
+}
+
+function extractMaxDollarAmount(text: string) {
+  const matches = text.match(/\$[\d,]+/g);
+  if (!matches) {
+    return undefined;
+  }
+
+  const values = matches
+    .map((value) => Number(value.replace(/[$,]/g, "")))
+    .filter((value) => Number.isFinite(value));
+
+  return values.length ? Math.max(...values) : undefined;
 }
