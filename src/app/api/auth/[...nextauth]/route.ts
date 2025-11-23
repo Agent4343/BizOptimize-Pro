@@ -104,13 +104,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ nex
         // Return empty session instead of error
         return new Response(JSON.stringify({}), {
           status: 200,
-          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          headers: { 
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Content-Type-Options': 'nosniff',
+          },
         });
       }
       // If no handler, return empty session
       return new Response(JSON.stringify({}), {
         status: 200,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        headers: { 
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-Content-Type-Options': 'nosniff',
+        },
       });
     }
     
@@ -132,7 +138,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ nex
       if (errorParams.nextauth?.[0] === 'session') {
         return new Response(JSON.stringify({}), {
           status: 200,
-          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          headers: { 
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Content-Type-Options': 'nosniff',
+          },
         });
       }
     } catch {
