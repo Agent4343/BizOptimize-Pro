@@ -19,9 +19,12 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-gray-600 hover:text-gray-900">
-                Sign In
-              </button>
+              <Link 
+                href="/pricing"
+                className="px-4 py-2 text-gray-600 hover:text-gray-900"
+              >
+                Pricing
+              </Link>
               <Link 
                 href="/dashboard"
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:opacity-90"
@@ -278,6 +281,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
                 <li>About Us</li>
                 <li>Case Studies</li>
                 <li>Careers</li>

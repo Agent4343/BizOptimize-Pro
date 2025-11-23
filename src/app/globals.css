@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -50,9 +48,65 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    /* Text size adjust with vendor prefixes */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Vendor prefix utilities for cross-browser compatibility */
+@layer utilities {
+  /* Backdrop filter with vendor prefix */
+  .backdrop-blur {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  
+  /* Background clip with proper ordering */
+  .bg-clip-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  
+  /* User select with vendor prefixes and proper ordering */
+  .select-none {
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  .select-text {
+    -webkit-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+  
+  .select-all {
+    -webkit-user-select: all;
+    -ms-user-select: all;
+    user-select: all;
+  }
+  
+  .select-auto {
+    -webkit-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+  }
+  
+  /* Appearance with proper ordering */
+  .appearance-none {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Mask image with vendor prefix */
+  .mask-image {
+    -webkit-mask-image: var(--mask-image);
+    mask-image: var(--mask-image);
   }
 }
