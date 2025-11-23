@@ -86,9 +86,16 @@ After your first deployment, Vercel will give you a URL like `https://your-app.v
 
 ## Step 7: Set Up Database
 
-1. In Supabase, go to SQL Editor
-2. Run the SQL from `src/lib/supabase.ts` (the `databaseSchema` export)
-3. This will create all necessary tables
+**⚠️ IMPORTANT: This step is required! Without it, you'll get 404 errors.**
+
+1. In Supabase, go to **SQL Editor** (left sidebar)
+2. Click **"New query"**
+3. Copy the SQL from `SUPABASE_SETUP.md` file (or see `src/lib/supabase.ts` for the `databaseSchema` export)
+4. Paste it into the SQL Editor
+5. Click **"Run"** to execute
+6. Verify tables were created in **Table Editor**
+
+**See `SUPABASE_SETUP.md` for detailed step-by-step instructions and troubleshooting.**
 
 ## Step 8: Configure Stripe Webhook (if using payments)
 
