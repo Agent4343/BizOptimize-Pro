@@ -19,9 +19,12 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-gray-600 hover:text-gray-900">
+              <Link 
+                href="/auth/signin"
+                className="px-4 py-2 text-gray-600 hover:text-gray-900"
+              >
                 Sign In
-              </button>
+              </Link>
               <Link 
                 href="/dashboard"
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:opacity-90"
