@@ -1,0 +1,3 @@
+[33me387763[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Update all Content-Type headers to include charset and security headers
+[33m6985ce3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add security headers and improve Content-Type headers for better web standards compliance
+[33mbdd09f8[m Add Supabase database setup guide and update Vercel deployment docs
