@@ -113,11 +113,12 @@ export default function SignInPage() {
               Sign up
             </Link>
           </div>
-          <div className="mt-2 text-center">
+          {/* Forgot password functionality can be added later */}
+          {/* <div className="mt-2 text-center">
             <Link href="/auth/forgot-password" className="text-sm text-gray-500 hover:underline">
               Forgot password?
             </Link>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
