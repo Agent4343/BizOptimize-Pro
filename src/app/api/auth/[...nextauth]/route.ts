@@ -149,7 +149,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ nex
     }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          headers: { 
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Content-Type-Options': 'nosniff',
+          },
     });
   }
 }
@@ -172,7 +175,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ne
     console.error('NextAuth POST error:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          headers: { 
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Content-Type-Options': 'nosniff',
+          },
     });
   }
 }
