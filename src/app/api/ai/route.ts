@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Helper function to call OpenAI API
-async function callOpenAI(prompt: string, systemPrompt: string) {
+// Helper function to call OpenAI API with function calling for code compliance
+async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured');
+  }
+
+  const requestBody: any = {
+    model: 'gpt-4-turbo-preview', // or 'gpt-3.5-turbo' for cheaper option
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
+
+  if (functions && functions.length > 0) {
+    requestBody.tools = functions;
+    requestBody.tool_choice = 'auto';
   }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -13,15 +28,7 @@ async function callOpenAI(prompt: string, systemPrompt: string) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: 'gpt-4-turbo-preview', // or 'gpt-3.5-turbo' for cheaper option
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -33,11 +40,26 @@ async function callOpenAI(prompt: string, systemPrompt: string) {
   return data.choices[0]?.message?.content || '';
 }
 
-// Helper function to call OpenRouter API
-async function callOpenRouter(prompt: string, systemPrompt: string) {
+// Helper function to call OpenRouter API with function calling
+async function callOpenRouter(prompt: string, systemPrompt: string, functions?: any[]) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY not configured');
+  }
+
+  const requestBody: any = {
+    model: 'anthropic/claude-3.5-sonnet', // or 'openai/gpt-4-turbo'
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
+
+  if (functions && functions.length > 0) {
+    requestBody.tools = functions;
+    requestBody.tool_choice = 'auto';
   }
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -48,15 +70,7 @@ async function callOpenRouter(prompt: string, systemPrompt: string) {
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://bizoptimize-pro.vercel.app',
       'X-Title': 'BizOptimize Pro',
     },
-    body: JSON.stringify({
-      model: 'anthropic/claude-3.5-sonnet', // or 'openai/gpt-4-turbo'
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -66,6 +80,49 @@ async function callOpenRouter(prompt: string, systemPrompt: string) {
 
   const data = await response.json();
   return data.choices[0]?.message?.content || '';
+}
+
+// Helper to extract province from location
+function extractProvince(location: string): string {
+  const provinces: Record<string, string> = {
+    'nl': 'Newfoundland and Labrador',
+    'nf': 'Newfoundland and Labrador',
+    'newfoundland': 'Newfoundland and Labrador',
+    'labrador': 'Newfoundland and Labrador',
+    'ns': 'Nova Scotia',
+    'nova scotia': 'Nova Scotia',
+    'pe': 'Prince Edward Island',
+    'pei': 'Prince Edward Island',
+    'prince edward island': 'Prince Edward Island',
+    'nb': 'New Brunswick',
+    'new brunswick': 'New Brunswick',
+    'qc': 'Quebec',
+    'quebec': 'Quebec',
+    'on': 'Ontario',
+    'ontario': 'Ontario',
+    'mb': 'Manitoba',
+    'manitoba': 'Manitoba',
+    'sk': 'Saskatchewan',
+    'saskatchewan': 'Saskatchewan',
+    'ab': 'Alberta',
+    'alberta': 'Alberta',
+    'bc': 'British Columbia',
+    'british columbia': 'British Columbia',
+    'yt': 'Yukon',
+    'yukon': 'Yukon',
+    'nt': 'Northwest Territories',
+    'northwest territories': 'Northwest Territories',
+    'nu': 'Nunavut',
+    'nunavut': 'Nunavut'
+  };
+  
+  const locationLower = location.toLowerCase();
+  for (const [key, province] of Object.entries(provinces)) {
+    if (locationLower.includes(key)) {
+      return province;
+    }
+  }
+  return 'Ontario'; // Default
 }
 
 export async function POST(request: NextRequest) {
@@ -264,32 +321,62 @@ export async function POST(request: NextRequest) {
         : null) || 
         defaultResponse;
       
-      // If AI is available, enhance the estimate with additional insights
+      // If AI is available, enhance the estimate with compliance agents
       const hasOpenAI = !!process.env.OPENAI_API_KEY;
       const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
       
       if ((hasOpenRouter || hasOpenAI) && prompt) {
         try {
           useAI = true;
-          const aiSystemPrompt = `You are an expert construction estimator. Review the provided estimate and add:
-- Additional trade-specific line items if missing
-- Material recommendations based on project type and location
-- Code compliance notes for the location
-- Seasonal considerations
-- Any missing cost factors
-- Professional formatting improvements
+          
+          // Extract province from prompt/location
+          const locationMatch = prompt.match(/Location:\s*(.+?)(?:\n|$)/i);
+          const location = locationMatch ? locationMatch[1].trim() : '';
+          const province = extractProvince(location);
+          
+          // Multi-agent system prompt for compliance and pricing validation
+          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
 
-Keep all existing costs and calculations. Only add enhancements and missing details.`;
+1. **Code Compliance Agent**: Expert in ${province} building codes and regulations
+   - Verify all trades comply with ${province} building codes
+   - Check electrical code (CEC), plumbing code, fire code
+   - Ensure structural requirements are met
+   - Validate permit requirements
+
+2. **Pricing Validation Agent**: Expert in ${province} construction pricing
+   - Verify labor rates are current for ${province} market
+   - Validate material costs against ${province} market rates
+   - Check if pricing aligns with industry standards
+   - Flag any unusually high or low costs
+
+3. **Trade-Specific Code Agent**: Expert in trade-specific codes
+   - Electrical: CEC (Canadian Electrical Code) compliance
+   - Plumbing: NPC (National Plumbing Code) compliance
+   - Structural: NBC (National Building Code) compliance
+   - HVAC: Mechanical code compliance
+   - Fire: Fire code requirements
+
+Review the provided estimate and provide:
+- Code compliance verification for ${province}
+- Pricing validation against ${province} market rates
+- Trade-specific code references
+- Any compliance issues or missing requirements
+- Recommended adjustments for accuracy
+
+Format your response with clear sections for each agent's findings.`;
+          
+          // Enhanced prompt with province and project details
+          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${province}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${province}\n2. Accurate pricing for ${province} market\n3. All trade-specific codes are followed`;
           
           let aiEnhancement = '';
           if (hasOpenRouter) {
-            aiEnhancement = await callOpenRouter(`Base estimate:\n\n${baseResponse}\n\nUser project details:\n${prompt}`, aiSystemPrompt);
+            aiEnhancement = await callOpenRouter(enhancedPrompt, aiSystemPrompt);
           } else {
-            aiEnhancement = await callOpenAI(`Base estimate:\n\n${baseResponse}\n\nUser project details:\n${prompt}`, aiSystemPrompt);
+            aiEnhancement = await callOpenAI(enhancedPrompt, aiSystemPrompt);
           }
           
-          // Combine base estimate with AI enhancements
-          defaultResponse = baseResponse + '\n\n---\n\n## AI-Enhanced Recommendations\n\n' + aiEnhancement;
+          // Combine base estimate with AI agent enhancements
+          defaultResponse = baseResponse + '\n\n---\n\n## Compliance & Pricing Validation (${province})\n\n' + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
