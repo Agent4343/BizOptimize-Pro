@@ -17,14 +17,64 @@ export default function DashboardPage() {
     setAvailableTrades(getAvailableTrades());
   }, []);
 
-  // Only show purchased trades in the modules list
-  const modules = purchasedTrades.map(trade => ({
+  // Business optimization modules (always available)
+  const businessModules = [
+    {
+      id: "trucking",
+      name: "Fleet Optimizer",
+      description: "Route optimization and fuel efficiency tracking",
+      icon: "🚛",
+      savings: "Reduce fuel costs by 18-30%",
+      status: "Active",
+      path: "/dashboard/modules/trucking"
+    },
+    {
+      id: "restaurant",
+      name: "Restaurant Manager",
+      description: "Inventory optimization and waste reduction",
+      icon: "🍽️",
+      savings: "Cut food costs by 12-22%",
+      status: "Active",
+      path: "/dashboard/modules/restaurant"
+    },
+    {
+      id: "manufacturing",
+      name: "Manufacturing Optimizer",
+      description: "Production efficiency and quality control",
+      icon: "🏭",
+      savings: "Boost efficiency by 20-35%",
+      status: "Active",
+      path: "/dashboard/modules/manufacturing"
+    },
+    {
+      id: "retail",
+      name: "Retail Analytics",
+      description: "Sales forecasting and inventory management",
+      icon: "🛍️",
+      savings: "Increase margins by 10-18%",
+      status: "Active",
+      path: "/dashboard/modules/retail"
+    },
+    {
+      id: "services",
+      name: "Service Scheduler",
+      description: "Appointment and resource optimization",
+      icon: "📅",
+      savings: "Reduce downtime by 25-40%",
+      status: "Active",
+      path: "/dashboard/modules/services"
+    }
+  ];
+
+  // Only show purchased trades in the trade estimators list
+  const tradeModules = purchasedTrades.map(trade => ({
     id: trade.trade,
     name: trade.name,
     description: trade.description,
     icon: trade.icon,
     savings: "Active",
-    status: "Active"
+    status: "Active",
+    path: `/dashboard/modules/construction?trade=${trade.trade}`
   }));
 
   return (
@@ -118,20 +168,53 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Purchased Trade Modules */}
-        {modules.length > 0 ? (
-          <Card>
+        {/* Business Optimization Modules */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Business Optimization Modules</CardTitle>
+            <CardDescription>
+              AI-powered optimization tools for your business operations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {businessModules.map((module) => (
+              <button
+                key={module.id}
+                onClick={() => window.location.href = module.path}
+                className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
+              >
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
+                  {module.icon}
+                </div>
+                <h3 className="font-semibold mb-2">{module.name}</h3>
+                <p className="text-sm text-gray-600 mb-3">{module.description}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                    {module.status}
+                  </span>
+                  <span className="text-sm font-bold text-green-600">
+                    {module.savings}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Purchased Trade Estimators */}
+        {tradeModules.length > 0 && (
+          <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Your Trade Estimators</CardTitle>
+              <CardTitle>Construction Trade Estimators</CardTitle>
               <CardDescription>
                 Click on any estimator to generate quotes for your clients
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {modules.map((module) => (
+              {tradeModules.map((module) => (
                 <button
                   key={module.id}
-                  onClick={() => window.location.href = `/dashboard/modules/construction?trade=${module.id}`}
+                  onClick={() => window.location.href = module.path}
                   className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
                 >
                   <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
@@ -151,8 +234,11 @@ export default function DashboardPage() {
               ))}
             </CardContent>
           </Card>
-        ) : (
-          <Card className="border-yellow-200 bg-yellow-50">
+        )}
+
+        {/* No Trades Purchased Message */}
+        {tradeModules.length === 0 && (
+          <Card className="mt-6 border-yellow-200 bg-yellow-50">
             <CardContent className="p-6 text-center">
               <div className="text-4xl mb-4">🔒</div>
               <h3 className="text-lg font-semibold mb-2">No Trade Estimators Purchased</h3>
