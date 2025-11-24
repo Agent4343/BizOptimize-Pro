@@ -250,69 +250,72 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    // Try to use AI API if configured, otherwise use mock responses
+    // For construction estimates, always use our detailed calculation system
+    // For other business types, use AI if available, otherwise use mock responses
     let defaultResponse: string = "Analysis completed. Optimization recommendations generated based on your business data.";
     let useAI = false;
 
-    // Check if we have an API key configured
-    const hasOpenAI = !!process.env.OPENAI_API_KEY;
-    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-
-    if (hasOpenRouter || hasOpenAI) {
-      try {
-        useAI = true;
-        // Build system prompt based on business type
-        const systemPrompts: Record<string, Record<string, string>> = {
-          construction: {
-            estimate: `You are an expert construction estimator. Generate detailed, accurate construction estimates in markdown format with:
-- Project cost breakdown by component (foundation, framing, roofing, etc.)
-- Cost per square foot
-- Potential savings opportunities
-- Implementation timeline
-- All costs in CAD dollars
-- Use realistic Canadian construction pricing`
-          },
-          trucking: {
-            fleet: `You are a fleet optimization expert. Generate detailed fleet analysis reports in markdown format with:
-- Current performance metrics
-- Optimization recommendations
-- Financial projections
-- ROI analysis
-- All costs in CAD dollars`
-          },
-          restaurant: {
-            inventory: `You are a restaurant operations expert. Generate detailed optimization analysis in markdown format with:
-- Current metrics
-- Optimization strategies
-- Cost savings breakdown
-- Implementation timeline
-- All costs in CAD dollars`
-          }
-        };
-
-        const systemPrompt = systemPrompts[businessType]?.[optimizationType] || 
-          'You are a business optimization expert. Generate detailed analysis and recommendations in markdown format.';
-
-        // Use OpenRouter if available, otherwise OpenAI
-        if (hasOpenRouter) {
-          defaultResponse = await callOpenRouter(prompt, systemPrompt);
-        } else {
-          defaultResponse = await callOpenAI(prompt, systemPrompt);
-        }
-      } catch (aiError) {
-        console.error('AI API error, falling back to mock:', aiError);
-        // Fall back to mock responses if AI fails
-        useAI = false;
-      }
-    }
-
-    // Use mock responses if AI is not configured or failed
-    if (!useAI) {
+    // Construction estimates always use our calculation system
+    if (businessType === 'construction' && optimizationType === 'estimate') {
       const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
       defaultResponse = (businessResponses && optimizationType in businessResponses 
         ? (businessResponses as any)[optimizationType] 
         : null) || 
         defaultResponse;
+    } else {
+      // For other business types, try AI if available
+      const hasOpenAI = !!process.env.OPENAI_API_KEY;
+      const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+
+      if (hasOpenRouter || hasOpenAI) {
+        try {
+          useAI = true;
+          // Build system prompt based on business type
+          const systemPrompts: Record<string, Record<string, string>> = {
+            trucking: {
+              fleet: `You are a fleet optimization expert. Generate detailed fleet analysis reports in markdown format with:
+- Current performance metrics
+- Optimization recommendations
+- Financial projections
+- ROI analysis
+- All costs in CAD dollars
+- Use specific numbers, not ranges`
+            },
+            restaurant: {
+              inventory: `You are a restaurant operations expert. Generate detailed optimization analysis in markdown format with:
+- Current metrics
+- Optimization strategies
+- Cost savings breakdown
+- Implementation timeline
+- All costs in CAD dollars
+- Use specific numbers, not ranges`
+            }
+          };
+
+          const systemPrompt = systemPrompts[businessType]?.[optimizationType] || 
+            'You are a business optimization expert. Generate detailed analysis and recommendations in markdown format with specific numbers, not ranges.';
+
+          // Use OpenRouter if available, otherwise OpenAI
+          if (hasOpenRouter) {
+            defaultResponse = await callOpenRouter(prompt, systemPrompt);
+          } else {
+            defaultResponse = await callOpenAI(prompt, systemPrompt);
+          }
+        } catch (aiError) {
+          console.error('AI API error, falling back to mock:', aiError);
+          // Fall back to mock responses if AI fails
+          useAI = false;
+        }
+      }
+
+      // Use mock responses if AI is not configured or failed
+      if (!useAI) {
+        const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
+        defaultResponse = (businessResponses && optimizationType in businessResponses 
+          ? (businessResponses as any)[optimizationType] 
+          : null) || 
+          defaultResponse;
+      }
     }
 
     // Extract cost and savings amounts from response
