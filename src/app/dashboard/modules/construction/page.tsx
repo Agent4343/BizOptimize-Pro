@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -498,7 +498,7 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
   }
 }
 
-export default function ConstructionPage() {
+function ConstructionPageContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
