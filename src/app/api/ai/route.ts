@@ -200,16 +200,18 @@ export async function POST(request: NextRequest) {
         },
         
         plumbing: (prompt: string) => {
+          const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
           const fixturesMatch = prompt.match(/Fixtures.*?(\d+)/i);
-          const fixtures = fixturesMatch ? parseInt(fixturesMatch[1]) : 5;
-          const waterHeater = /water.*heater/i.test(prompt);
+          const fixtures = fixturesMatch ? parseInt(fixturesMatch[1]) : (isGarage ? 0 : 5);
+          const waterHeater = /water.*heater/i.test(prompt) && !isGarage;
           
-          const fixtureCost = fixtures * 450;
+          // For garages, typically only utility sink if any plumbing
+          const fixtureCost = isGarage ? (fixtures > 0 ? fixtures * 300 : 0) : fixtures * 450;
           const waterHeaterCost = waterHeater ? 2500 : 0;
-          const pipeCost = fixtures * 180;
-          const drainCost = fixtures * 120;
-          const permitCost = 300;
-          const inspectionCost = 150;
+          const pipeCost = isGarage ? (fixtures > 0 ? fixtures * 120 : 0) : fixtures * 180;
+          const drainCost = isGarage ? (fixtures > 0 ? fixtures * 80 : 0) : fixtures * 120;
+          const permitCost = isGarage ? 150 : 300;
+          const inspectionCost = isGarage ? 100 : 150;
           const contractorOverhead = Math.round((fixtureCost + waterHeaterCost + pipeCost + drainCost) * 0.20);
           
           const totalCost = fixtureCost + waterHeaterCost + pipeCost + drainCost + permitCost + inspectionCost + contractorOverhead;
@@ -220,8 +222,9 @@ export async function POST(request: NextRequest) {
 ## Project Details
 - **Location**: ${location || 'Not specified'}
 - **Province**: ${province}
-- **Fixtures**: ${fixtures}
-- **Water Heater**: ${waterHeater ? 'Yes' : 'No'}
+- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
+- **Fixtures**: ${fixtures}${isGarage ? ' (Utility sink if applicable)' : ''}
+- **Water Heater**: ${waterHeater ? 'Yes' : 'No'}${isGarage ? ' (Not typically required for garages)' : ''}
 
 ## Detailed Cost Breakdown
 
@@ -248,16 +251,19 @@ ${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleStr
         },
         
         hvac: (prompt: string) => {
+          const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
           const capacityMatch = prompt.match(/(\d+).*?(?:BTU|btu|ton)/i);
-          const capacity = capacityMatch ? parseInt(capacityMatch[1]) : 36000;
-          const systemType = /heat.*pump/i.test(prompt) ? 'Heat Pump' : 'Forced Air';
-          const ductwork = /ductwork/i.test(prompt);
+          const capacity = capacityMatch ? parseInt(capacityMatch[1]) : (isGarage ? 0 : 36000);
+          const systemType = /heat.*pump/i.test(prompt) ? 'Heat Pump' : (/space.*heater|radiant/i.test(prompt) ? 'Space Heater/Radiant' : 'Forced Air');
+          const ductwork = /ductwork/i.test(prompt) && !isGarage;
+          const noHVAC = /no.*hvac|none.*required/i.test(prompt) || (isGarage && !capacityMatch);
           
-          const systemCost = capacity >= 36000 ? 8500 : 6500;
+          // For garages, typically no HVAC or minimal heating
+          const systemCost = noHVAC ? 0 : (isGarage ? 1200 : (capacity >= 36000 ? 8500 : 6500));
           const ductworkCost = ductwork ? 3500 : 0;
-          const installationCost = 2500;
-          const permitCost = 400;
-          const inspectionCost = 200;
+          const installationCost = isGarage ? 600 : 2500;
+          const permitCost = isGarage ? 200 : 400;
+          const inspectionCost = isGarage ? 100 : 200;
           const contractorOverhead = Math.round((systemCost + ductworkCost + installationCost) * 0.20);
           
           const totalCost = systemCost + ductworkCost + installationCost + permitCost + inspectionCost + contractorOverhead;
@@ -268,9 +274,10 @@ ${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleStr
 ## Project Details
 - **Location**: ${location || 'Not specified'}
 - **Province**: ${province}
-- **System Type**: ${systemType}
-- **Capacity**: ${capacity.toLocaleString()} BTU
-- **Ductwork**: ${ductwork ? 'Required' : 'Not Required'}
+- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
+- **System Type**: ${noHVAC ? 'No HVAC Required' : systemType}
+- **Capacity**: ${capacity > 0 ? capacity.toLocaleString() + ' BTU' : 'N/A'}
+- **Ductwork**: ${ductwork ? 'Required' : 'Not Required'}${isGarage ? ' (Garages typically don\'t require ductwork)' : ''}
 
 ## Detailed Cost Breakdown
 
