@@ -255,13 +255,51 @@ export async function POST(request: NextRequest) {
     let defaultResponse: string = "Analysis completed. Optimization recommendations generated based on your business data.";
     let useAI = false;
 
-    // Construction estimates always use our calculation system
+    // Construction estimates: use our calculation system, then enhance with AI if available
     if (businessType === 'construction' && optimizationType === 'estimate') {
+      // First, generate base estimate using our calculation system
       const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
-      defaultResponse = (businessResponses && optimizationType in businessResponses 
+      let baseResponse = (businessResponses && optimizationType in businessResponses 
         ? (businessResponses as any)[optimizationType] 
         : null) || 
         defaultResponse;
+      
+      // If AI is available, enhance the estimate with additional insights
+      const hasOpenAI = !!process.env.OPENAI_API_KEY;
+      const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+      
+      if ((hasOpenRouter || hasOpenAI) && prompt) {
+        try {
+          useAI = true;
+          const aiSystemPrompt = `You are an expert construction estimator. Review the provided estimate and add:
+- Additional trade-specific line items if missing
+- Material recommendations based on project type and location
+- Code compliance notes for the location
+- Seasonal considerations
+- Any missing cost factors
+- Professional formatting improvements
+
+Keep all existing costs and calculations. Only add enhancements and missing details.`;
+          
+          let aiEnhancement = '';
+          if (hasOpenRouter) {
+            aiEnhancement = await callOpenRouter(`Base estimate:\n\n${baseResponse}\n\nUser project details:\n${prompt}`, aiSystemPrompt);
+          } else {
+            aiEnhancement = await callOpenAI(`Base estimate:\n\n${baseResponse}\n\nUser project details:\n${prompt}`, aiSystemPrompt);
+          }
+          
+          // Combine base estimate with AI enhancements
+          defaultResponse = baseResponse + '\n\n---\n\n## AI-Enhanced Recommendations\n\n' + aiEnhancement;
+        } catch (aiError) {
+          console.error('AI enhancement error, using base estimate:', aiError);
+          // Use base estimate if AI fails
+          defaultResponse = baseResponse;
+          useAI = false;
+        }
+      } else {
+        // No AI available, use base estimate
+        defaultResponse = baseResponse;
+      }
     } else {
       // For other business types, try AI if available
       const hasOpenAI = !!process.env.OPENAI_API_KEY;

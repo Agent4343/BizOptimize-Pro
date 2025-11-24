@@ -12,10 +12,13 @@ export default function ConstructionPage() {
   const [savings, setSavings] = useState<number>(0);
   const [formData, setFormData] = useState({
     projectName: "",
+    projectType: "",
     squareFootage: "",
     bedrooms: "",
     bathrooms: "",
-    location: ""
+    stories: "",
+    location: "",
+    description: ""
   });
 
   const generateEstimate = async () => {
@@ -25,7 +28,17 @@ export default function ConstructionPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `Construction project: ${formData.squareFootage} sq ft, ${formData.bedrooms} bedrooms, ${formData.bathrooms} bathrooms in ${formData.location}`,
+          prompt: `Construction project estimate:
+Project Name: ${formData.projectName || 'Unnamed Project'}
+Project Type: ${formData.projectType || 'Not specified'}
+Square Footage: ${formData.squareFootage} sq ft
+Stories/Levels: ${formData.stories || '1'}
+Bedrooms: ${formData.bedrooms || 'N/A'}
+Bathrooms: ${formData.bathrooms || 'N/A'}
+Location: ${formData.location || 'Not specified'}
+Project Description: ${formData.description || 'No additional details provided'}
+
+Generate a detailed construction estimate with line-item breakdowns for all trades.`,
           businessType: 'construction',
           optimizationType: 'estimate'
         })
@@ -86,41 +99,80 @@ export default function ConstructionPage() {
                   onChange={(e) => setFormData({...formData, projectName: e.target.value})}
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Project Type</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.projectType}
+                  onChange={(e) => setFormData({...formData, projectType: e.target.value})}
+                >
+                  <option value="">Select project type...</option>
+                  <option value="new-construction">New Construction</option>
+                  <option value="renovation">Renovation</option>
+                  <option value="addition">Addition</option>
+                  <option value="garage">Garage</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="multi-unit">Multi-Unit</option>
+                  <option value="custom">Custom/Other</option>
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Square Footage</label>
+                  <label className="text-sm font-medium">Square Footage *</label>
                   <Input
                     placeholder="2000"
+                    type="number"
                     value={formData.squareFootage}
                     onChange={(e) => setFormData({...formData, squareFootage: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Bedrooms</label>
+                  <label className="text-sm font-medium">Stories/Levels</label>
                   <Input
-                    placeholder="3"
-                    value={formData.bedrooms}
-                    onChange={(e) => setFormData({...formData, bedrooms: e.target.value})}
+                    placeholder="1"
+                    type="number"
+                    value={formData.stories}
+                    onChange={(e) => setFormData({...formData, stories: e.target.value})}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <label className="text-sm font-medium">Bedrooms</label>
+                  <Input
+                    placeholder="3"
+                    type="number"
+                    value={formData.bedrooms}
+                    onChange={(e) => setFormData({...formData, bedrooms: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium">Bathrooms</label>
                   <Input
                     placeholder="2.5"
+                    type="number"
+                    step="0.5"
                     value={formData.bathrooms}
                     onChange={(e) => setFormData({...formData, bathrooms: e.target.value})}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Location</label>
-                  <Input
-                    placeholder="St. John's, NL"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  />
-                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Location</label>
+                <Input
+                  placeholder="St. John's, NL"
+                  value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Project Description</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Describe the project in detail: materials, special requirements, existing conditions (for renovations), etc."
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                />
               </div>
               <Button 
                 onClick={generateEstimate} 
