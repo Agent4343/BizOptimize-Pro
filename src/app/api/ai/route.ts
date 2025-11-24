@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     const savingsMatch = defaultResponse.match(/\$[\d,]+/g);
     let estimatedSavings = 50000; // Default
     if (savingsMatch) {
-      const amounts = savingsMatch.map(s => parseInt(s.replace(/[$,]/g, '')));
+      const amounts = savingsMatch.map((s: string) => parseInt(s.replace(/[$,]/g, '')));
       estimatedSavings = Math.max(...amounts);
     }
 
