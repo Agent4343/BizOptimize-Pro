@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AgentSidebar, AgentChatMessage } from "@/components/agent/AgentSidebar";
 import { requestOptimization } from "@/lib/ai-client";
+import { sendAgentMessage } from "@/lib/agent-client";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/numbers";
 
@@ -47,13 +49,24 @@ interface ConstructionMetrics {
   circuits?: number;
 }
 
+type ConstructionFormState = {
+  projectName: string;
+  squareFootage: string;
+  bedrooms: string;
+  bathrooms: string;
+  location: string;
+  labourCode: string;
+  structureType: string;
+  floors: string;
+};
+
 export default function ConstructionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ConstructionMetrics>({});
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ConstructionFormState>({
     projectName: "",
     squareFootage: "",
     bedrooms: "",
@@ -63,6 +76,20 @@ export default function ConstructionPage() {
     structureType: structureOptions[0]?.value ?? "residential",
     floors: "2",
   });
+  const [agentMessages, setAgentMessages] = useState<AgentChatMessage[]>([
+    {
+      id: "agent-welcome",
+      role: "assistant",
+      content:
+        "Need a hand? Ask me about labour codes, electrical rough-ins, or how to squeeze more ROI out of this build.",
+    },
+  ]);
+  const [agentSuggestions, setAgentSuggestions] = useState([
+    "Suggest a labour code for drywall work",
+    "How much wire for 4,500 sq ft?",
+    "Help me price a 3-floor retrofit",
+  ]);
+  const [agentLoading, setAgentLoading] = useState(false);
   const labourDetails = labourCodes.find((code) => code.code === formData.labourCode);
 
   const generateEstimate = async () => {
@@ -136,6 +163,73 @@ export default function ConstructionPage() {
     }
   };
 
+  const handleAgentSend = async (message: string) => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+
+    const userMessage: AgentChatMessage = {
+      id: createLocalId(),
+      role: "user",
+      content: trimmed,
+    };
+
+    const nextHistory = [...agentMessages, userMessage].map((entry) => ({
+      role: entry.role,
+      content: entry.content,
+    }));
+
+    setAgentMessages((previous) => [...previous, userMessage]);
+    setAgentLoading(true);
+
+    try {
+      const response = await sendAgentMessage({
+        message: trimmed,
+        history: nextHistory,
+        context: { formData },
+      });
+
+      if (response.suggestions?.length) {
+        setAgentSuggestions(response.suggestions);
+      }
+
+      const assistantMessage: AgentChatMessage = {
+        id: createLocalId(),
+        role: "assistant",
+        content: response.reply,
+        fields: response.fields,
+      };
+      setAgentMessages((previous) => [...previous, assistantMessage]);
+    } catch (agentError) {
+      const fallback: AgentChatMessage = {
+        id: createLocalId(),
+        role: "assistant",
+        content:
+          agentError instanceof Error
+            ? agentError.message
+            : "I ran into a problem processing that request. Try again in a few seconds.",
+      };
+      setAgentMessages((previous) => [...previous, fallback]);
+    } finally {
+      setAgentLoading(false);
+    }
+  };
+
+  const applyAgentFields = (fields: Record<string, string | number>) => {
+    setFormData((previous) => {
+      const next = { ...previous };
+      Object.entries(fields).forEach(([key, value]) => {
+        if (key in next) {
+          const nextValue =
+            typeof next[key as keyof ConstructionFormState] === "string"
+              ? String(value ?? "")
+              : (value as ConstructionFormState[keyof ConstructionFormState]);
+          next[key as keyof ConstructionFormState] = nextValue as never;
+        }
+      });
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -159,16 +253,18 @@ export default function ConstructionPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Details</CardTitle>
-              <CardDescription>
-                Enter your project information for accurate estimation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-8">
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Input Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Project Details</CardTitle>
+                  <CardDescription>
+                    Enter your project information for accurate estimation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Project Name</label>
                   <Input
@@ -270,18 +366,18 @@ export default function ConstructionPage() {
               <p className="text-xs text-gray-500 text-center">
                 Powered by BizOptimize AI · Claude Sonnet 4 via OpenRouter
               </p>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Results */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Estimate Results</CardTitle>
-              <CardDescription>
-                AI-generated construction estimate with cost optimization
-              </CardDescription>
-            </CardHeader>
-              <CardContent>
+              {/* Results */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Estimate Results</CardTitle>
+                  <CardDescription>
+                    AI-generated construction estimate with cost optimization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                 {error && (
                   <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                     {error}
@@ -355,8 +451,19 @@ export default function ConstructionPage() {
                     </p>
                   </div>
                 )}
-              </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+          <div className="h-full">
+            <AgentSidebar
+              messages={agentMessages}
+              suggestions={agentSuggestions}
+              loading={agentLoading}
+              onSend={handleAgentSend}
+              onApplyFields={applyAgentFields}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -392,4 +499,11 @@ function deriveElectricalPlan(
     wireGauge,
     circuits,
   };
+}
+
+function createLocalId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `agent-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
