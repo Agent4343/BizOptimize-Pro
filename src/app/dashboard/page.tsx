@@ -8,33 +8,24 @@ import { getPurchasedTradesWithDetails, getAvailableTrades, type TradeAccess } f
 
 export default function DashboardPage() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [purchasedTrades, setPurchasedTrades] = useState<TradeAccess[]>([]);
+  const [availableTrades, setAvailableTrades] = useState<TradeAccess[]>([]);
 
-  const modules = [
-    {
-      id: "construction",
-      name: "Construction Estimator",
-      description: "Detailed project estimates with line-item breakdowns",
-      icon: "🏗️",
-      savings: "$94,610",
-      status: "Active"
-    },
-    {
-      id: "trucking", 
-      name: "Fleet Optimizer",
-      description: "Route and fuel optimization",
-      icon: "🚛",
-      savings: "$574,720",
-      status: "Active"
-    },
-    {
-      id: "restaurant",
-      name: "Restaurant Manager", 
-      description: "Inventory and waste optimization",
-      icon: "🍽️",
-      savings: "$45,250",
-      status: "Active"
-    }
-  ];
+  useEffect(() => {
+    // Load purchased and available trades
+    setPurchasedTrades(getPurchasedTradesWithDetails());
+    setAvailableTrades(getAvailableTrades());
+  }, []);
+
+  // Only show purchased trades in the modules list
+  const modules = purchasedTrades.map(trade => ({
+    id: trade.trade,
+    name: trade.name,
+    description: trade.description,
+    icon: trade.icon,
+    savings: "Active",
+    status: "Active"
+  }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -52,11 +43,13 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Link href="/dashboard/pricing">
+                <Button variant="outline" size="sm">
+                  Manage Trades
+                </Button>
+              </Link>
               <Button variant="outline" size="sm">
                 Settings
-              </Button>
-              <Button variant="outline" size="sm">
-                Billing
               </Button>
             </div>
           </div>
