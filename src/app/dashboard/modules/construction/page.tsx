@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasTradeAccess, type Trade } from "@/lib/trade-access";
+import { validateConstructionForm, validateSquareFootage, validateLocation, validateProjectType } from "@/lib/validation";
 import Link from "next/link";
 
 // Helper function to get trade-specific prompt
@@ -561,8 +562,16 @@ function ConstructionPageContent() {
 
   // Start conversation flow
   const startConversation = async () => {
-    if (!basicInfo.projectType || !basicInfo.location || !basicInfo.squareFootage) {
-      alert('Please fill in Project Type, Location, and Square Footage to start.');
+    // Validate inputs
+    const validation = validateConstructionForm({
+      projectType: basicInfo.projectType,
+      location: basicInfo.location,
+      squareFootage: basicInfo.squareFootage,
+      trade: selectedTrade
+    });
+    
+    if (!validation.valid) {
+      alert(`Please fix the following errors:\n\n${validation.errors.join('\n')}`);
       return;
     }
     

@@ -82,83 +82,12 @@ async function callOpenRouter(prompt: string, systemPrompt: string, functions?: 
   return data.choices[0]?.message?.content || '';
 }
 
-// Helper to extract province from location
+// Import enhanced province detection
+import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
+
+// Helper to extract province from location (backward compatible)
 function extractProvince(location: string): string {
-  const provinces: Record<string, string> = {
-    'nl': 'Newfoundland and Labrador',
-    'nf': 'Newfoundland and Labrador',
-    'newfoundland': 'Newfoundland and Labrador',
-    'labrador': 'Newfoundland and Labrador',
-    'st. john': 'Newfoundland and Labrador',
-    'st john': 'Newfoundland and Labrador',
-    'st. john\'s': 'Newfoundland and Labrador',
-    'st john\'s': 'Newfoundland and Labrador',
-    'ns': 'Nova Scotia',
-    'nova scotia': 'Nova Scotia',
-    'pe': 'Prince Edward Island',
-    'pei': 'Prince Edward Island',
-    'prince edward island': 'Prince Edward Island',
-    'nb': 'New Brunswick',
-    'new brunswick': 'New Brunswick',
-    'qc': 'Quebec',
-    'quebec': 'Quebec',
-    'on': 'Ontario',
-    'ontario': 'Ontario',
-    'mb': 'Manitoba',
-    'manitoba': 'Manitoba',
-    'sk': 'Saskatchewan',
-    'saskatchewan': 'Saskatchewan',
-    'ab': 'Alberta',
-    'alberta': 'Alberta',
-    'bc': 'British Columbia',
-    'british columbia': 'British Columbia',
-    'yt': 'Yukon',
-    'yukon': 'Yukon',
-    'nt': 'Northwest Territories',
-    'northwest territories': 'Northwest Territories',
-    'nu': 'Nunavut',
-    'nunavut': 'Nunavut'
-  };
-  
-  const locationLower = location.toLowerCase();
-  for (const [key, province] of Object.entries(provinces)) {
-    if (locationLower.includes(key)) {
-      return province;
-    }
-  }
-  // Try to detect by common city names
-  if (locationLower.includes('st. john') || locationLower.includes('st john')) {
-    return 'Newfoundland and Labrador';
-  }
-  if (locationLower.includes('halifax')) {
-    return 'Nova Scotia';
-  }
-  if (locationLower.includes('charlottetown')) {
-    return 'Prince Edward Island';
-  }
-  if (locationLower.includes('fredericton') || locationLower.includes('moncton')) {
-    return 'New Brunswick';
-  }
-  if (locationLower.includes('montreal') || locationLower.includes('quebec city')) {
-    return 'Quebec';
-  }
-  if (locationLower.includes('toronto') || locationLower.includes('ottawa')) {
-    return 'Ontario';
-  }
-  if (locationLower.includes('winnipeg')) {
-    return 'Manitoba';
-  }
-  if (locationLower.includes('regina') || locationLower.includes('saskatoon')) {
-    return 'Saskatchewan';
-  }
-  if (locationLower.includes('calgary') || locationLower.includes('edmonton')) {
-    return 'Alberta';
-  }
-  if (locationLower.includes('vancouver') || locationLower.includes('victoria')) {
-    return 'British Columbia';
-  }
-  
-  return 'Canada'; // Default to Canada if unknown
+  return extractProvinceEnhanced(location).province;
 }
 
 export async function POST(request: NextRequest) {
