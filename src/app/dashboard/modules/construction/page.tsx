@@ -44,9 +44,14 @@ interface ConstructionMetrics {
   labourHourlyRate?: number;
   labourCode?: string;
   labourDescription?: string;
+  labourHours?: number;
+  labourCost?: number;
   wireLength?: number;
   wireGauge?: string;
   circuits?: number;
+  serviceAmps?: number;
+  serviceLoad?: number;
+  serviceRationale?: string;
 }
 
 type ConstructionFormState = {
@@ -101,6 +106,12 @@ export default function ConstructionPage() {
     const estimatedBudget = squareFootage ? squareFootage * 190 : undefined;
     const floors = toNumber(formData.floors);
     const electricalPlan = deriveElectricalPlan(squareFootage, formData.structureType, floors);
+    const labourHours = deriveLabourHours(squareFootage, formData.structureType);
+    const labourCost =
+      labourHours && labourDetails?.hourlyRate
+        ? Math.round(labourHours * labourDetails.hourlyRate)
+        : undefined;
+    const servicePlan = deriveServiceRecommendation(squareFootage, electricalPlan?.circuits);
 
     const prompt = [
       `Estimate a ${formData.structureType} build named "${formData.projectName || "Unnamed Project"}" in ${
@@ -136,6 +147,11 @@ export default function ConstructionPage() {
           predictedWireLength: electricalPlan?.wireLength,
           predictedWireGauge: electricalPlan?.wireGauge,
           predictedCircuits: electricalPlan?.circuits,
+          estimatedLabourHours: labourHours,
+          estimatedLabourCost: labourCost,
+          serviceMainSize: servicePlan?.recommendedAmps,
+          serviceLoadAmps: servicePlan?.estimatedLoadAmps,
+          serviceRationale: servicePlan?.rationale,
           aiProvider: "BizOptimize AI · Claude Sonnet 4 via OpenRouter",
         },
       });
@@ -147,9 +163,14 @@ export default function ConstructionPage() {
         labourCode: labourDetails?.code,
         labourDescription: labourDetails?.description,
         labourHourlyRate: labourDetails?.hourlyRate,
+        labourHours,
+        labourCost,
         wireLength: electricalPlan?.wireLength,
         wireGauge: electricalPlan?.wireGauge,
         circuits: electricalPlan?.circuits,
+        serviceAmps: servicePlan?.recommendedAmps,
+        serviceLoad: servicePlan?.estimatedLoadAmps,
+        serviceRationale: servicePlan?.rationale,
       });
     } catch (apiError) {
       console.error("Error:", apiError);
@@ -385,7 +406,7 @@ export default function ConstructionPage() {
                 )}
                 {result ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="text-center p-4 bg-blue-50 rounded-lg">
                         <div className="text-2xl font-bold text-blue-600">
                           {formatCurrency(metrics.projectCost ?? 278241)}
@@ -413,6 +434,29 @@ export default function ConstructionPage() {
                             Crew rate approx. ${metrics.labourHourlyRate}/hr
                           </p>
                         )}
+                      </div>
+                      <div className="p-4 bg-emerald-50 rounded-lg text-left">
+                        <div className="text-sm uppercase tracking-wide text-emerald-700 mb-1">
+                          Labour Allocation
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-900">
+                          {metrics.labourCost ? formatCurrency(metrics.labourCost) : "—"}
+                        </p>
+                        <p className="text-sm text-emerald-700">
+                          {(metrics.labourHours ?? "—").toString()} hrs estimated for crew{" "}
+                          {metrics.labourCode || labourDetails?.code || "—"}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-purple-50 rounded-lg text-left">
+                        <div className="text-sm uppercase tracking-wide text-purple-700 mb-1">
+                          Service Capacity
+                        </div>
+                        <p className="text-2xl font-bold text-purple-900">
+                          {metrics.serviceAmps ? `${metrics.serviceAmps} A` : "100 A"}
+                        </p>
+                        <p className="text-sm text-purple-700">
+                          {metrics.serviceRationale || "Rule-of-thumb sizing based on current load."}
+                        </p>
                       </div>
                     </div>
                     {(metrics.wireLength || metrics.wireGauge) && (
@@ -498,6 +542,32 @@ function deriveElectricalPlan(
     wireLength,
     wireGauge,
     circuits,
+  };
+}
+
+function deriveLabourHours(squareFootage?: number, structureType?: string) {
+  if (!squareFootage) return undefined;
+  const rate = structureType === "commercial" ? 0.12 : structureType === "industrial" ? 0.14 : 0.09;
+  return Math.max(40, Math.round(squareFootage * rate));
+}
+
+function deriveServiceRecommendation(squareFootage?: number, circuits?: number) {
+  if (!squareFootage) {
+    return undefined;
+  }
+  const baseLoadWatts = squareFootage * 3;
+  const circuitAllowance = circuits ? circuits * 1500 : 0;
+  const totalWatts = baseLoadWatts + circuitAllowance;
+  const estimatedLoadAmps = Math.ceil(totalWatts / 240);
+  const recommendedAmps = estimatedLoadAmps > 90 ? 200 : 100;
+
+  return {
+    estimatedLoadAmps,
+    recommendedAmps,
+    rationale:
+      recommendedAmps === 200
+        ? "Load exceeds 90 amps, recommend upgrading to 200 A service."
+        : "Load within 100 A rule-of-thumb envelope.",
   };
 }
 
