@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { hasTradeAccess, type Trade } from "@/lib/trade-access";
+import Link from "next/link";
 
 // Helper function to get trade-specific prompt
 function getTradeSpecificPrompt(trade: string, formData: any): string {
@@ -496,11 +499,19 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
 }
 
 export default function ConstructionPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
   const [totalCost, setTotalCost] = useState<number>(0);
   const [savings, setSavings] = useState<number>(0);
-  const [selectedTrade, setSelectedTrade] = useState<string>("");
+  const [selectedTrade, setSelectedTrade] = useState<string>(searchParams?.get('trade') || "");
+  const [hasAccess, setHasAccess] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (selectedTrade) {
+      setHasAccess(hasTradeAccess(selectedTrade as Trade));
+    }
+  }, [selectedTrade]);
   const [formData, setFormData] = useState({
     projectName: "",
     projectType: "",
@@ -629,13 +640,34 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Access Check */}
+              {selectedTrade && !hasAccess && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">🔒</span>
+                    <h3 className="font-semibold">Trade Not Purchased</h3>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    You need to purchase access to the {selectedTrade} estimator to use this feature.
+                  </p>
+                  <Link href={`/dashboard/pricing?trade=${selectedTrade}`}>
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                      Purchase {selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Estimator
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
               {/* Trade Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Your Trade *</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={selectedTrade}
-                  onChange={(e) => setSelectedTrade(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedTrade(e.target.value);
+                    setHasAccess(hasTradeAccess(e.target.value as Trade));
+                  }}
                 >
                   <option value="">Select a trade...</option>
                   <option value="electrical">Electrical</option>
@@ -750,10 +782,10 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
 
               <Button 
                 onClick={generateEstimate} 
-                disabled={loading || !selectedTrade || !formData.location}
+                disabled={loading || !selectedTrade || !formData.location || !hasAccess}
                 className="w-full"
               >
-                {loading ? 'Generating Estimate...' : `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate`}
+                {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
               </Button>
             </CardContent>
           </Card>

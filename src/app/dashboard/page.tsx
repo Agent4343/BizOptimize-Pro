@@ -123,38 +123,93 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Business Modules */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Business Optimization Modules</CardTitle>
-            <CardDescription>
-              Click on any module to start optimizing your operations
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {modules.map((module) => (
-              <button
-                key={module.id}
-                onClick={() => window.location.href = `/dashboard/modules/${module.id}`}
-                className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
-              >
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
-                  {module.icon}
+        {/* Purchased Trade Modules */}
+        {modules.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Trade Estimators</CardTitle>
+              <CardDescription>
+                Click on any estimator to generate quotes for your clients
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {modules.map((module) => (
+                <button
+                  key={module.id}
+                  onClick={() => window.location.href = `/dashboard/modules/construction?trade=${module.id}`}
+                  className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left group"
+                >
+                  <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
+                    {module.icon}
+                  </div>
+                  <h3 className="font-semibold mb-2">{module.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{module.description}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                      Active
+                    </span>
+                    <span className="text-sm font-bold text-green-600">
+                      ✓ Purchased
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-6 text-center">
+              <div className="text-4xl mb-4">🔒</div>
+              <h3 className="text-lg font-semibold mb-2">No Trade Estimators Purchased</h3>
+              <p className="text-gray-600 mb-4">
+                Purchase access to trade-specific estimators to start generating quotes for your clients.
+              </p>
+              <Link href="/dashboard/pricing">
+                <Button className="bg-blue-600 hover:bg-blue-700">
+                  View Available Trades & Pricing
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Available Trades to Purchase */}
+        {availableTrades.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Available Trade Estimators</CardTitle>
+              <CardDescription>
+                Purchase access to additional trade estimators
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {availableTrades.map((trade) => (
+                <div
+                  key={trade.trade}
+                  className="p-6 border rounded-lg border-gray-200 bg-gray-50"
+                >
+                  <div className="text-3xl mb-3">{trade.icon}</div>
+                  <h3 className="font-semibold mb-2">{trade.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{trade.description}</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-bold text-blue-600">
+                      ${trade.price}/month
+                    </span>
+                    <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                      Not Purchased
+                    </span>
+                  </div>
+                  <Button 
+                    className="w-full"
+                    onClick={() => window.location.href = `/dashboard/pricing?trade=${trade.trade}`}
+                  >
+                    Purchase Access
+                  </Button>
                 </div>
-                <h3 className="font-semibold mb-2">{module.name}</h3>
-                <p className="text-sm text-gray-600 mb-3">{module.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                    {module.status}
-                  </span>
-                  <span className="text-sm font-bold text-green-600">
-                    {module.savings} saved
-                  </span>
-                </div>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Trial Status */}
         <Card className="mt-6 border-blue-200 bg-blue-50">
