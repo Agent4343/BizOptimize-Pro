@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Try to use AI API if configured, otherwise use mock responses
-    let defaultResponse: string;
+    let defaultResponse: string = "Analysis completed. Optimization recommendations generated based on your business data.";
     let useAI = false;
 
     // Check if we have an API key configured
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
       defaultResponse = (businessResponses && optimizationType in businessResponses 
         ? (businessResponses as any)[optimizationType] 
         : null) || 
-        "Analysis completed. Optimization recommendations generated based on your business data.";
+        defaultResponse;
     }
 
     // Extract cost and savings amounts from response
