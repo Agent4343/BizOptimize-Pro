@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TRADES, getPurchasedTrades, purchaseTrade, type Trade } from "@/lib/trade-access";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
-export default function PricingPage() {
+function PricingPageContent() {
   const searchParams = useSearchParams();
   const selectedTrade = searchParams?.get('trade') || '';
   const [purchased, setPurchased] = useState<Trade[]>([]);
