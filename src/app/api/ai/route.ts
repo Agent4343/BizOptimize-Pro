@@ -297,7 +297,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
           const permitCost = 250;
           const contractorOverhead = Math.round((materialCost + laborCost + underlayment + flashing) * 0.20);
           
-          const totalCost = materialCost + laborCost + underlayment + flashing + permitCost + contractorOverhead;
+          let totalCost = materialCost + laborCost + underlayment + flashing + permitCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
           return `# Roofing Estimate
