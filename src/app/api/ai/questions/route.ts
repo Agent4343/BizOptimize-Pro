@@ -83,11 +83,12 @@ export async function POST(request: NextRequest) {
       currentAnswer,
       projectType,
       location,
-      squareFootage 
+      squareFootage,
+      province
     } = body;
 
-    // Extract province
-    const province = extractProvince(location || '');
+    // Use provided province if available, otherwise extract from location
+    const finalProvince = province || extractProvince(location || '');
 
     // Build conversation history
     const conversationHistory = conversation || [];
@@ -99,21 +100,21 @@ export async function POST(request: NextRequest) {
     const hasBasicInfo = projectType && location && squareFootage;
     
     // Build system prompt for question generation
-    const systemPrompt = `You are an expert construction estimator assistant specializing in ${trade} work in ${province}, Canada.
+    const systemPrompt = `You are an expert construction estimator assistant specializing in ${trade} work in ${finalProvince}, Canada.
 
 Your role is to ask intelligent, relevant questions to gather all necessary information for an accurate ${trade} estimate. 
 
 IMPORTANT GUIDELINES:
 1. Ask ONE question at a time
 2. Questions should be specific to ${trade} work
-3. Consider ${province} building codes and regulations
+3. Consider ${finalProvince} building codes and regulations
 4. For ${projectType === 'garage' ? 'garage' : 'residential'} projects, ask appropriate questions
 5. Don't ask about things that don't apply (e.g., don't ask about bathrooms for garages)
 6. Once you have enough information, respond with "READY_TO_ESTIMATE" and summarize what you know
 
 Current information gathered:
 - Project Type: ${projectType || 'Not specified'}
-- Location: ${location || 'Not specified'} (${province})
+- Location: ${location || 'Not specified'} (${finalProvince})
 - Square Footage: ${squareFootage || 'Not specified'}
 
 Based on the conversation so far, determine:
