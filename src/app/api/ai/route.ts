@@ -89,7 +89,10 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const defaultResponse = mockResponses[businessType as keyof typeof mockResponses]?.[optimizationType as keyof typeof mockResponses['construction']] || 
+    const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
+    const defaultResponse = (businessResponses && optimizationType in businessResponses 
+      ? (businessResponses as any)[optimizationType] 
+      : null) || 
       "Analysis completed. Optimization recommendations generated based on your business data.";
 
     // Extract savings amount (mock calculation)
