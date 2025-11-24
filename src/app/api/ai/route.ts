@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
       const provinceMatch = promptText.match(/Province:\s*(.+?)(?:\n|$)/i);
       
       // Use provided province if available, otherwise extract from location
-      const extractedLocation = locationMatch ? locationMatch[1].trim() : (location || '');
-      const providedProvince = province || (provinceMatch ? provinceMatch[1].trim() : '');
+      const extractedLocation: string = locationMatch ? locationMatch[1].trim() : (location || '');
+      const providedProvince: string = province || (provinceMatch ? provinceMatch[1].trim() : '');
       
       // If province is provided directly, use it; otherwise extract from location
       let finalProvince: string;
@@ -121,8 +121,9 @@ export async function POST(request: NextRequest) {
         costMultiplier = provinceData.costMultiplier;
       }
       
-      const location = extractedLocation;
-      const province = finalProvince;
+      // Use these values in the trade calculators
+      const locationValue: string = extractedLocation;
+      const provinceValue: string = finalProvince;
       
       // Trade-specific calculation functions
       const tradeCalculators: Record<string, (prompt: string) => string> = {
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'electrical')}`;
+${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         },
         
         plumbing: (prompt: string) => {
@@ -253,7 +254,7 @@ ${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleStr
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'plumbing')}`;
+${generateCodeComplianceSection(provinceValue, 'plumbing')}`;
         },
         
         hvac: (prompt: string) => {
@@ -303,7 +304,7 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'hvac')}`;
+${generateCodeComplianceSection(provinceValue, 'hvac')}`;
         },
         
         roofing: (prompt: string) => {
@@ -359,7 +360,7 @@ ${generateCodeComplianceSection(province, 'hvac')}`;
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'roofing')}`;
+${generateCodeComplianceSection(provinceValue, 'roofing')}`;
         },
         
         foundation: (prompt: string) => {
@@ -408,7 +409,7 @@ ${generateCodeComplianceSection(province, 'roofing')}`;
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'foundation')}`;
+${generateCodeComplianceSection(provinceValue, 'foundation')}`;
         },
         
         drywall: (prompt: string) => {
@@ -453,7 +454,7 @@ ${generateCodeComplianceSection(province, 'foundation')}`;
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'drywall')}`;
+${generateCodeComplianceSection(provinceValue, 'drywall')}`;
         },
         
         flooring: (prompt: string) => {
@@ -506,7 +507,7 @@ ${generateCodeComplianceSection(province, 'drywall')}`;
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'flooring')}`;
+${generateCodeComplianceSection(provinceValue, 'flooring')}`;
         },
         
         painting: (prompt: string) => {
@@ -549,7 +550,7 @@ ${generateCodeComplianceSection(province, 'flooring')}`;
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-${generateCodeComplianceSection(province, 'painting')}`;
+${generateCodeComplianceSection(provinceValue, 'painting')}`;
         }
       };
       
