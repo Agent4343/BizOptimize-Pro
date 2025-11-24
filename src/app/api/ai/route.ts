@@ -84,9 +84,6 @@ async function callOpenRouter(prompt: string, systemPrompt: string, functions?: 
   return data.choices[0]?.message?.content || '';
 }
 
-// Import enhanced province detection
-import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
-
 // Helper to extract province from location (backward compatible)
 function extractProvince(location: string): string {
   return extractProvinceEnhanced(location).province;
@@ -184,7 +181,9 @@ export async function POST(request: NextRequest) {
           const inspectionCost = isGarage ? 100 : 150;
           const contractorOverhead = Math.round((fixtureCost + waterHeaterCost + pipeCost + drainCost) * 0.20);
           
-          const totalCost = fixtureCost + waterHeaterCost + pipeCost + drainCost + permitCost + inspectionCost + contractorOverhead;
+          let totalCost = fixtureCost + waterHeaterCost + pipeCost + drainCost + permitCost + inspectionCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
           return `# Plumbing Estimate
@@ -236,7 +235,9 @@ ${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleStr
           const inspectionCost = isGarage ? 100 : 200;
           const contractorOverhead = Math.round((systemCost + ductworkCost + installationCost) * 0.20);
           
-          const totalCost = systemCost + ductworkCost + installationCost + permitCost + inspectionCost + contractorOverhead;
+          let totalCost = systemCost + ductworkCost + installationCost + permitCost + inspectionCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
           return `# HVAC Estimate
@@ -344,7 +345,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
           const inspectionCost = 200;
           const contractorOverhead = Math.round((excavation + concrete + rebar + waterproofing) * 0.20);
           
-          const totalCost = excavation + concrete + rebar + waterproofing + permitCost + inspectionCost + contractorOverhead;
+          let totalCost = excavation + concrete + rebar + waterproofing + permitCost + inspectionCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
           return `# Foundation Estimate
@@ -392,7 +395,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
           const sanding = area * 0.8;
           const contractorOverhead = Math.round((materialCost + laborCost + mudding + sanding) * 0.20);
           
-          const totalCost = materialCost + laborCost + mudding + sanding + contractorOverhead;
+          let totalCost = materialCost + laborCost + mudding + sanding + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.10);
           
           return `# Drywall Estimate
@@ -442,7 +447,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
           const underlayment = area * 0.5;
           const contractorOverhead = Math.round((materialCost + laborCost + underlayment) * 0.20);
           
-          const totalCost = materialCost + laborCost + underlayment + contractorOverhead;
+          let totalCost = materialCost + laborCost + underlayment + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.10);
           
           return `# Flooring Estimate
@@ -481,7 +488,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
           const prepCost = area * 0.5;
           const contractorOverhead = Math.round((paintCost + laborCost + prepCost) * 0.20);
           
-          const totalCost = paintCost + laborCost + prepCost + contractorOverhead;
+          let totalCost = paintCost + laborCost + prepCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.10);
           
           return `# Painting Estimate
