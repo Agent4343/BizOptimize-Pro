@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
 import { validateEstimate } from '@/lib/validation';
+import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-codes';
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
@@ -161,11 +162,7 @@ export async function POST(request: NextRequest) {
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-## Code Compliance (${province})
-- **CEC Compliance**: Verified
-- **Provincial Code**: ${province} Electrical Code
-- **Permit Required**: Yes
-- **Inspection Required**: Yes`;
+${generateCodeComplianceSection(province, 'electrical')}`;
         },
         
         plumbing: (prompt: string) => {
@@ -214,11 +211,7 @@ ${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleStr
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-## Code Compliance (${province})
-- **NPC Compliance**: Verified
-- **Provincial Code**: ${province} Plumbing Code
-- **Permit Required**: Yes
-- **Inspection Required**: Yes`;
+${generateCodeComplianceSection(province, 'plumbing')}`;
         },
         
         hvac: (prompt: string) => {
@@ -268,11 +261,7 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-## Code Compliance (${province})
-- **Mechanical Code Compliance**: Verified
-- **Provincial Code**: ${province} Mechanical Code
-- **Permit Required**: Yes
-- **Inspection Required**: Yes`;
+${generateCodeComplianceSection(province, 'hvac')}`;
         },
         
         roofing: (prompt: string) => {
@@ -328,10 +317,7 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-## Code Compliance (${province})
-- **Building Code Compliance**: Verified
-- **Provincial Code**: ${province} Building Code
-- **Permit Required**: Yes`;
+${generateCodeComplianceSection(province, 'roofing')}`;
         },
         
         foundation: (prompt: string) => {
@@ -380,11 +366,7 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
 - **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
 
-## Code Compliance (${province})
-- **NBC Compliance**: Verified
-- **Provincial Code**: ${province} Building Code
-- **Permit Required**: Yes
-- **Inspection Required**: Yes`;
+${generateCodeComplianceSection(province, 'foundation')}`;
         },
         
         drywall: (prompt: string) => {
@@ -427,7 +409,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Total Drywall Cost**: $${totalCost.toLocaleString()} CAD
 - **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+${generateCodeComplianceSection(province, 'drywall')}`;
         },
         
         flooring: (prompt: string) => {
@@ -478,7 +462,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Total Flooring Cost**: $${totalCost.toLocaleString()} CAD
 - **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+${generateCodeComplianceSection(province, 'flooring')}`;
         },
         
         painting: (prompt: string) => {
@@ -519,7 +505,9 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
 - **Total Painting Cost**: $${totalCost.toLocaleString()} CAD
 - **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
 - **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+${generateCodeComplianceSection(province, 'painting')}`;
         }
       };
       
