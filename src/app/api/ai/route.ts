@@ -126,7 +126,9 @@ export async function POST(request: NextRequest) {
           const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
           const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
           
-          const totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+          // Apply province-specific cost multiplier
+          totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
           return `# Electrical Estimate
