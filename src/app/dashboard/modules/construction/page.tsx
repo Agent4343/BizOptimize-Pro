@@ -1094,9 +1094,15 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
           {/* Results */}
           <Card>
             <CardHeader>
-              <CardTitle>Estimate Results</CardTitle>
+              <CardTitle>
+                {selectedTrade 
+                  ? `${selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Estimate Results`
+                  : 'Estimate Results'}
+              </CardTitle>
               <CardDescription>
-                AI-generated construction estimate with cost optimization
+                {selectedTrade 
+                  ? `AI-generated ${selectedTrade} estimate with cost optimization and code compliance`
+                  : 'AI-generated construction estimate with cost optimization'}
               </CardDescription>
             </CardHeader>
             <CardContent>
