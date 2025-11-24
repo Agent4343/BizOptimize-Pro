@@ -73,6 +73,8 @@ function extractProvince(location: string): string {
   const provinces: Record<string, string> = {
     'nl': 'Newfoundland and Labrador', 'nf': 'Newfoundland and Labrador',
     'newfoundland': 'Newfoundland and Labrador', 'labrador': 'Newfoundland and Labrador',
+    'st. john': 'Newfoundland and Labrador', 'st john': 'Newfoundland and Labrador',
+    'st. john\'s': 'Newfoundland and Labrador', 'st john\'s': 'Newfoundland and Labrador',
     'ns': 'Nova Scotia', 'nova scotia': 'Nova Scotia',
     'pe': 'Prince Edward Island', 'pei': 'Prince Edward Island',
     'prince edward island': 'Prince Edward Island',
@@ -94,6 +96,38 @@ function extractProvince(location: string): string {
       return provinces[key];
     }
   }
+  // Try to detect by common city names
+  if (normalizedLocation.includes('st. john') || normalizedLocation.includes('st john')) {
+    return 'Newfoundland and Labrador';
+  }
+  if (normalizedLocation.includes('halifax')) {
+    return 'Nova Scotia';
+  }
+  if (normalizedLocation.includes('charlottetown')) {
+    return 'Prince Edward Island';
+  }
+  if (normalizedLocation.includes('fredericton') || normalizedLocation.includes('moncton')) {
+    return 'New Brunswick';
+  }
+  if (normalizedLocation.includes('montreal') || normalizedLocation.includes('quebec city')) {
+    return 'Quebec';
+  }
+  if (normalizedLocation.includes('toronto') || normalizedLocation.includes('ottawa')) {
+    return 'Ontario';
+  }
+  if (normalizedLocation.includes('winnipeg')) {
+    return 'Manitoba';
+  }
+  if (normalizedLocation.includes('regina') || normalizedLocation.includes('saskatoon')) {
+    return 'Saskatchewan';
+  }
+  if (normalizedLocation.includes('calgary') || normalizedLocation.includes('edmonton')) {
+    return 'Alberta';
+  }
+  if (normalizedLocation.includes('vancouver') || normalizedLocation.includes('victoria')) {
+    return 'British Columbia';
+  }
+  
   return 'Canada';
 }
 

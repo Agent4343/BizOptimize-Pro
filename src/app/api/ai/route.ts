@@ -89,6 +89,10 @@ function extractProvince(location: string): string {
     'nf': 'Newfoundland and Labrador',
     'newfoundland': 'Newfoundland and Labrador',
     'labrador': 'Newfoundland and Labrador',
+    'st. john': 'Newfoundland and Labrador',
+    'st john': 'Newfoundland and Labrador',
+    'st. john\'s': 'Newfoundland and Labrador',
+    'st john\'s': 'Newfoundland and Labrador',
     'ns': 'Nova Scotia',
     'nova scotia': 'Nova Scotia',
     'pe': 'Prince Edward Island',
@@ -122,7 +126,39 @@ function extractProvince(location: string): string {
       return province;
     }
   }
-  return 'Ontario'; // Default
+  // Try to detect by common city names
+  if (locationLower.includes('st. john') || locationLower.includes('st john')) {
+    return 'Newfoundland and Labrador';
+  }
+  if (locationLower.includes('halifax')) {
+    return 'Nova Scotia';
+  }
+  if (locationLower.includes('charlottetown')) {
+    return 'Prince Edward Island';
+  }
+  if (locationLower.includes('fredericton') || locationLower.includes('moncton')) {
+    return 'New Brunswick';
+  }
+  if (locationLower.includes('montreal') || locationLower.includes('quebec city')) {
+    return 'Quebec';
+  }
+  if (locationLower.includes('toronto') || locationLower.includes('ottawa')) {
+    return 'Ontario';
+  }
+  if (locationLower.includes('winnipeg')) {
+    return 'Manitoba';
+  }
+  if (locationLower.includes('regina') || locationLower.includes('saskatoon')) {
+    return 'Saskatchewan';
+  }
+  if (locationLower.includes('calgary') || locationLower.includes('edmonton')) {
+    return 'Alberta';
+  }
+  if (locationLower.includes('vancouver') || locationLower.includes('victoria')) {
+    return 'British Columbia';
+  }
+  
+  return 'Canada'; // Default to Canada if unknown
 }
 
 export async function POST(request: NextRequest) {
@@ -140,24 +176,26 @@ export async function POST(request: NextRequest) {
       // Trade-specific calculation functions
       const tradeCalculators: Record<string, (prompt: string) => string> = {
         electrical: (prompt: string) => {
+          const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
           const panelMatch = prompt.match(/Panel Size.*?(\d+)/i);
           const circuitsMatch = prompt.match(/Circuits.*?(\d+)/i);
           const outletsMatch = prompt.match(/Outlets.*?(\d+)/i);
           const switchesMatch = prompt.match(/Switches.*?(\d+)/i);
           
-          const panelSize = panelMatch ? parseInt(panelMatch[1]) : 200;
-          const circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : 20;
-          const outlets = outletsMatch ? parseInt(outletsMatch[1]) : 30;
-          const switches = switchesMatch ? parseInt(switchesMatch[1]) : 15;
+          // Default values adjusted for garage vs house
+          const panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
+          const circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
+          const outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
+          const switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
           
-          // Electrical pricing (CAD)
-          const panelInstall = panelSize >= 200 ? 2500 : 1800;
+          // Electrical pricing (CAD) - adjusted for garage
+          const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
           const circuitCost = circuits * 150;
           const outletCost = outlets * 85;
           const switchCost = switches * 65;
           const wireCost = (circuits + outlets) * 25;
-          const permitCost = 350;
-          const inspectionCost = 200;
+          const permitCost = isGarage ? 250 : 350; // Lower permit cost for garages
+          const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
           const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
           
           const totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
@@ -168,10 +206,11 @@ export async function POST(request: NextRequest) {
 ## Project Details
 - **Location**: ${location || 'Not specified'}
 - **Province**: ${province}
-- **Panel Size**: ${panelSize} Amps
-- **Circuits**: ${circuits}
-- **Outlets**: ${outlets}
-- **Switches**: ${switches}
+- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
+- **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
+- **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
+- **Outlets**: ${outlets}${isGarage ? ' (Appropriate for garage)' : ''}
+- **Switches**: ${switches}${isGarage ? ' (Appropriate for garage)' : ''}
 
 ## Detailed Cost Breakdown
 
