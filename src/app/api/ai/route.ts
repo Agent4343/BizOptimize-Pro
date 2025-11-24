@@ -771,16 +771,18 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
         try {
           useAI = true;
           
-          // Extract province from prompt/location
+          // Extract province from prompt or use provided value
           const locationMatch = prompt.match(/Location:\s*(.+?)(?:\n|$)/i);
-          const location = locationMatch ? locationMatch[1].trim() : '';
-          const province = extractProvince(location);
+          const provinceMatch = prompt.match(/Province:\s*(.+?)(?:\n|$)/i);
+          const extractedLocationForAI: string = locationMatch ? locationMatch[1].trim() : (location || '');
+          const providedProvinceForAI: string = province || (provinceMatch ? provinceMatch[1].trim() : '');
+          const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
           const aiSystemPrompt = `You are a team of specialized construction estimation agents:
 
-1. **Code Compliance Agent**: Expert in ${province} building codes and regulations
-   - Verify all trades comply with ${province} building codes
+1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
+   - Verify all trades comply with ${finalProvinceForAI} building codes
    - Check electrical code (CEC), plumbing code, fire code
    - Ensure structural requirements are met
    - Validate permit requirements
