@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { hasTradeAccess, type Trade } from "@/lib/trade-access";
+import { hasTradeAccess, TRADES, type Trade } from "@/lib/trade-access";
 import { validateConstructionForm, validateSquareFootage, validateLocation, validateProjectType } from "@/lib/validation";
 import Link from "next/link";
 
@@ -845,29 +845,62 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </div>
               )}
 
-              {/* Trade Selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select Your Trade *</label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={selectedTrade}
-                  onChange={(e) => {
-                    setSelectedTrade(e.target.value);
-                    setHasAccess(hasTradeAccess(e.target.value as Trade));
-                  }}
-                >
-                  <option value="">Select a trade...</option>
-                  <option value="electrical">Electrical</option>
-                  <option value="plumbing">Plumbing</option>
-                  <option value="hvac">HVAC</option>
-                  <option value="framing">Framing</option>
-                  <option value="roofing">Roofing</option>
-                  <option value="foundation">Foundation</option>
-                  <option value="drywall">Drywall</option>
-                  <option value="flooring">Flooring</option>
-                  <option value="painting">Painting</option>
-                </select>
-              </div>
+              {/* Trade Selection - Only show if no trade selected */}
+              {!selectedTrade && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Your Trade *</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedTrade}
+                    onChange={(e) => {
+                      setSelectedTrade(e.target.value);
+                      setHasAccess(hasTradeAccess(e.target.value as Trade));
+                    }}
+                  >
+                    <option value="">Select a trade...</option>
+                    <option value="electrical">Electrical</option>
+                    <option value="plumbing">Plumbing</option>
+                    <option value="hvac">HVAC</option>
+                    <option value="framing">Framing</option>
+                    <option value="roofing">Roofing</option>
+                    <option value="foundation">Foundation</option>
+                    <option value="drywall">Drywall</option>
+                    <option value="flooring">Flooring</option>
+                    <option value="painting">Painting</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Trade Display - Show selected trade */}
+              {selectedTrade && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{TRADES[selectedTrade as Trade]?.icon || '⚡'}</span>
+                      <div>
+                        <div className="font-semibold text-blue-900">
+                          {TRADES[selectedTrade as Trade]?.name || selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) + ' Estimator'}
+                        </div>
+                        <div className="text-xs text-blue-700">
+                          {TRADES[selectedTrade as Trade]?.description || 'Trade-specific estimate'}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrade("");
+                        setHasAccess(false);
+                        setConversationMode(false);
+                        setConversation([]);
+                      }}
+                    >
+                      Change Trade
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Basic Info - Only show when starting conversation OR as part of unified form */}
               {!conversationMode && (
