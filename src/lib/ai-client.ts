@@ -1,11 +1,15 @@
 type BusinessType = "construction" | "trucking" | "restaurant";
 type OptimizationType = "estimate" | "fleet" | "inventory";
+type MetadataRecord = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 export interface OptimizationRequest {
   prompt: string;
   businessType: BusinessType;
   optimizationType: OptimizationType;
-  metadata?: Record<string, string | number | null | undefined>;
+  metadata?: MetadataRecord;
 }
 
 export interface OptimizationResponse {
@@ -46,20 +50,20 @@ export async function requestOptimization(
   return data;
 }
 
-function cleanMetadata(
-  metadata: Record<string, string | number | null | undefined> | undefined,
-) {
+function cleanMetadata(metadata: MetadataRecord | undefined) {
   if (!metadata) {
     return undefined;
   }
 
-  const entries = Object.entries(metadata).filter(
-    ([, value]) =>
-      value !== undefined &&
-      value !== null &&
-      value !== "" &&
-      value !== Number.NaN,
-  );
+  const entries = Object.entries(metadata).filter(([, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return false;
+    }
+    if (typeof value === "number" && Number.isNaN(value)) {
+      return false;
+    }
+    return true;
+  });
 
   if (!entries.length) {
     return undefined;
