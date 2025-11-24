@@ -810,7 +810,7 @@ Review the provided estimate and provide:
 Format your response with clear sections for each agent's findings.`;
           
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${province}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${province}\n2. Accurate pricing for ${province} market\n3. All trade-specific codes are followed`;
+          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
           
           let aiEnhancement = '';
           if (hasOpenRouter) {
