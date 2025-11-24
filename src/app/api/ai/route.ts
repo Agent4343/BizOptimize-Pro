@@ -810,11 +810,15 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
    - Flag any unusually high or low costs
 
 3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance
+   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
    - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance
+   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
    - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements
+   - Fire: Fire code requirements, especially fire separation for detached structures
+
+IMPORTANT NOTES:
+- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
+- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
 
 Review the provided estimate and provide:
 - Code compliance verification for ${finalProvinceForAI}
