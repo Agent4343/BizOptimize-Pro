@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
+import { validateEstimate } from '@/lib/validation';
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
