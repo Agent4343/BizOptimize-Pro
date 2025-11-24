@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 export default function ConstructionPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
+  const [totalCost, setTotalCost] = useState<number>(0);
+  const [savings, setSavings] = useState<number>(0);
   const [formData, setFormData] = useState({
     projectName: "",
     squareFootage: "",
@@ -32,6 +34,8 @@ export default function ConstructionPage() {
       const data = await response.json();
       if (data.success) {
         setResult(data.result);
+        setTotalCost(data.totalCost || 0);
+        setSavings(data.estimatedSavings || 0);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -141,11 +145,15 @@ export default function ConstructionPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">$278,241</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {totalCost > 0 ? `$${totalCost.toLocaleString()}` : 'Calculating...'}
+                      </div>
                       <div className="text-sm text-gray-600">Total Project Cost</div>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">$57,400</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {savings > 0 ? `$${savings.toLocaleString()}` : 'Calculating...'}
+                      </div>
                       <div className="text-sm text-gray-600">Potential Savings</div>
                     </div>
                   </div>

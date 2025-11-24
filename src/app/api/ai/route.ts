@@ -5,36 +5,88 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { prompt, businessType, optimizationType } = body;
 
+    // Generate dynamic construction estimate based on input
+    const generateConstructionEstimate = (promptText: string) => {
+      // Extract square footage from prompt
+      const sqftMatch = promptText.match(/(\d+)\s*(?:sq\s*ft|square\s*feet|square\s*footage)/i);
+      const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 2000; // Default to 2000 if not found
+      
+      // Extract bedrooms and bathrooms
+      const bedroomsMatch = promptText.match(/(\d+)\s*bedroom/i);
+      const bedrooms = bedroomsMatch ? parseInt(bedroomsMatch[1]) : 3;
+      const bathroomsMatch = promptText.match(/(\d+(?:\.\d+)?)\s*bathroom/i);
+      const bathrooms = bathroomsMatch ? parseFloat(bathroomsMatch[1]) : 2;
+      
+      // Calculate costs based on square footage
+      // Typical construction cost in Canada: $150-300 per sq ft (using $200 as average)
+      const costPerSqft = 200;
+      const baseCost = sqft * costPerSqft;
+      const materials = Math.round(baseCost * 0.55);
+      const labor = Math.round(baseCost * 0.25);
+      const contractorMarkup = Math.round(baseCost * 0.12);
+      const miscellaneous = Math.round(baseCost * 0.08);
+      const totalCost = materials + labor + contractorMarkup + miscellaneous;
+      
+      // Calculate potential savings (15-25% of total cost)
+      const savingsPercentage = 0.20; // 20% average
+      const potentialSavings = Math.round(totalCost * savingsPercentage);
+      const optimizedCost = totalCost - potentialSavings;
+      
+      // Calculate timeline based on size
+      const weeksPer1000Sqft = 3;
+      const baseWeeks = Math.ceil((sqft / 1000) * weeksPer1000Sqft);
+      const foundationWeeks = Math.max(2, Math.ceil(baseWeeks * 0.15));
+      const framingWeeks = Math.max(4, Math.ceil(baseWeeks * 0.30));
+      const mechanicalsWeeks = Math.max(3, Math.ceil(baseWeeks * 0.20));
+      const finishingWeeks = Math.max(4, Math.ceil(baseWeeks * 0.30));
+      const finalWeeks = 1;
+      const totalWeeks = foundationWeeks + framingWeeks + mechanicalsWeeks + finishingWeeks + finalWeeks;
+      
+      // Calculate individual savings opportunities
+      const localSourcing = Math.round(totalCost * 0.03);
+      const seasonalTiming = Math.round(totalCost * 0.05);
+      const rebates = Math.round(totalCost * 0.02);
+      const valueEngineering = Math.round(totalCost * 0.07);
+      const ownerSupplied = Math.round(totalCost * 0.03);
+      
+      return `# Construction Estimate Analysis
+
+## Project Details
+- **Square Footage**: ${sqft.toLocaleString()} sq ft
+- **Bedrooms**: ${bedrooms}
+- **Bathrooms**: ${bathrooms}
+
+## Project Cost Breakdown
+- **Total Project Cost**: $${totalCost.toLocaleString()} CAD
+- **Materials**: $${materials.toLocaleString()} (55%)
+- **Labor**: $${labor.toLocaleString()} (25%) 
+- **Contractor Markup**: $${contractorMarkup.toLocaleString()} (12%)
+- **Miscellaneous**: $${miscellaneous.toLocaleString()} (8%)
+
+## Identified Savings Opportunities
+1. **Local Material Sourcing**: Save $${localSourcing.toLocaleString()}
+2. **Seasonal Construction Timing**: Save $${seasonalTiming.toLocaleString()}
+3. **Energy Efficiency Rebates**: Save $${rebates.toLocaleString()}
+4. **Value Engineering**: Save $${valueEngineering.toLocaleString()}
+5. **Owner-Supplied Items**: Save $${ownerSupplied.toLocaleString()}
+
+**Total Potential Savings: $${potentialSavings.toLocaleString()}**
+**Optimized Project Cost: $${optimizedCost.toLocaleString()}**
+
+## Implementation Timeline
+- **Foundation**: ${foundationWeeks} weeks
+- **Framing & Envelope**: ${framingWeeks} weeks
+- **Mechanicals**: ${mechanicalsWeeks} weeks
+- **Interior Finishing**: ${finishingWeeks} weeks
+- **Final**: ${finalWeeks} week
+
+**Total Timeline: ${totalWeeks} weeks**`;
+    };
+
     // Simulate AI response for demo (replace with real OpenRouter call)
     const mockResponses = {
       construction: {
-        estimate: `# Construction Estimate Analysis
-
-## Project Cost Breakdown
-- **Total Project Cost**: $278,241 CAD
-- **Materials**: $153,300 (55%)
-- **Labor**: $68,040 (25%) 
-- **Contractor Markup**: $33,201 (12%)
-- **Miscellaneous**: $23,700 (8%)
-
-## Identified Savings Opportunities
-1. **Local Material Sourcing**: Save $8,500
-2. **Seasonal Construction Timing**: Save $15,000
-3. **Energy Efficiency Rebates**: Save $6,200
-4. **Value Engineering**: Save $18,500
-5. **Owner-Supplied Items**: Save $9,200
-
-**Total Potential Savings: $57,400**
-**Optimized Project Cost: $220,841**
-
-## Implementation Timeline
-- **Foundation**: 3 weeks (April-May)
-- **Framing & Envelope**: 6 weeks (May-June)
-- **Mechanicals**: 4 weeks (July)
-- **Interior Finishing**: 5 weeks (August)
-- **Final**: 1 week (September)
-
-**Total Timeline: 19 weeks**`
+        estimate: generateConstructionEstimate(prompt || '')
       },
       trucking: {
         fleet: `# Fleet Optimization Analysis
@@ -95,18 +147,18 @@ export async function POST(request: NextRequest) {
       : null) || 
       "Analysis completed. Optimization recommendations generated based on your business data.";
 
-    // Extract savings amount (mock calculation)
-    const savingsMatch = defaultResponse.match(/\$[\d,]+/g);
-    let estimatedSavings = 50000; // Default
-    if (savingsMatch) {
-      const amounts = savingsMatch.map((s: string) => parseInt(s.replace(/[$,]/g, '')));
-      estimatedSavings = Math.max(...amounts);
-    }
+    // Extract cost and savings amounts from response
+    const totalCostMatch = defaultResponse.match(/\*\*Total Project Cost\*\*: \$([\d,]+)/);
+    const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/);
+    
+    const totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
+    const estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
 
     return NextResponse.json({
       success: true,
       result: defaultResponse,
       estimatedSavings,
+      totalCost,
       businessType,
       optimizationType
     });
