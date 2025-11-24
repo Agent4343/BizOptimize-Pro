@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasTradeAccess, TRADES, type Trade } from "@/lib/trade-access";
 import { validateConstructionForm, validateSquareFootage, validateLocation, validateProjectType } from "@/lib/validation";
+import { PROVINCES_AND_TERRITORIES } from "@/lib/provinces";
 import Link from "next/link";
 
 // Helper function to get trade-specific prompt
