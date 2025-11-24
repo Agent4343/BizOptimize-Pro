@@ -794,8 +794,16 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 <span className="text-white">🏗️</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold">Construction Estimator</h1>
-                <p className="text-sm text-gray-600">Detailed estimates with line-item breakdowns for all construction trades</p>
+                <h1 className="text-xl font-bold">
+                  {selectedTrade 
+                    ? `${selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Estimator`
+                    : 'Construction Estimator'}
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {selectedTrade 
+                    ? `Detailed ${selectedTrade} estimates with line-item breakdowns and code compliance`
+                    : 'Detailed estimates with line-item breakdowns for all construction trades'}
+                </p>
               </div>
             </div>
           </div>
@@ -807,9 +815,15 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
           {/* Input Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Project Details</CardTitle>
+              <CardTitle>
+                {selectedTrade 
+                  ? `${selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Project Details`
+                  : 'Project Details'}
+              </CardTitle>
               <CardDescription>
-                Enter your project information for accurate estimation
+                {selectedTrade 
+                  ? `Enter your ${selectedTrade} project information for accurate estimation`
+                  : 'Enter your project information for accurate estimation'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
