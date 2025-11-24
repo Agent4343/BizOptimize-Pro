@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getPurchasedTradesWithDetails, getAvailableTrades, type TradeAccess } from "@/lib/trade-access";
 
 export default function DashboardPage() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
