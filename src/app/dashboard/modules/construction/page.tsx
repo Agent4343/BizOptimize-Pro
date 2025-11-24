@@ -60,7 +60,7 @@ export default function ConstructionPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">Construction Estimator</h1>
-                <p className="text-sm text-gray-600">AI-powered project estimation</p>
+                <p className="text-sm text-gray-600">Detailed estimates with line-item breakdowns for all construction trades</p>
               </div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function ConstructionPage() {
                   <div className="text-6xl mb-4">🏗️</div>
                   <h3 className="text-lg font-semibold mb-2">Ready to Generate Estimate</h3>
                   <p className="text-gray-600">
-                    Fill out the project details to generate a comprehensive AI-powered construction estimate.
+                    Fill out the project details to generate a detailed construction estimate with complete line-item breakdowns for all trades.
                   </p>
                 </div>
               )}

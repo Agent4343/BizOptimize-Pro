@@ -11,7 +11,7 @@ export default function DashboardPage() {
     {
       id: "construction",
       name: "Construction Estimator",
-      description: "AI-powered project estimation",
+      description: "Detailed project estimates with line-item breakdowns",
       icon: "🏗️",
       savings: "$94,610",
       status: "Active"
