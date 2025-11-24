@@ -787,9 +787,9 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
    - Ensure structural requirements are met
    - Validate permit requirements
 
-2. **Pricing Validation Agent**: Expert in ${finalProvince} construction pricing
-   - Verify labor rates are current for ${finalProvince} market
-   - Validate material costs against ${finalProvince} market rates
+2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
+   - Verify labor rates are current for ${finalProvinceForAI} market
+   - Validate material costs against ${finalProvinceForAI} market rates
    - Check if pricing aligns with industry standards
    - Flag any unusually high or low costs
 
@@ -801,8 +801,8 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
    - Fire: Fire code requirements
 
 Review the provided estimate and provide:
-- Code compliance verification for ${finalProvince}
-- Pricing validation against ${finalProvince} market rates
+- Code compliance verification for ${finalProvinceForAI}
+- Pricing validation against ${finalProvinceForAI} market rates
 - Trade-specific code references
 - Any compliance issues or missing requirements
 - Recommended adjustments for accuracy
@@ -820,7 +820,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvince})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
