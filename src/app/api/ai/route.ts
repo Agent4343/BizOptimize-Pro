@@ -106,16 +106,36 @@ export async function POST(request: NextRequest) {
       const tradeCalculators: Record<string, (prompt: string) => string> = {
         electrical: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
-          const panelMatch = prompt.match(/Panel Size.*?(\d+)/i);
-          const circuitsMatch = prompt.match(/Circuits.*?(\d+)/i);
-          const outletsMatch = prompt.match(/Outlets.*?(\d+)/i);
-          const switchesMatch = prompt.match(/Switches.*?(\d+)/i);
+          
+          // Extract values with better regex patterns and validation
+          const panelMatch = prompt.match(/(?:Panel|Main Panel).*?(\d+)\s*(?:amp|amps|A)/i);
+          const circuitsMatch = prompt.match(/(?:Circuits|Number of Circuits).*?(\d+)/i);
+          // More specific outlet matching - avoid matching voltage (240V) or other numbers
+          const outletsMatch = prompt.match(/(?:Outlets|Number of Outlets|Electrical Outlets).*?(\d+)(?!\s*(?:V|volt|amp|amps|A|sq|ft|feet))/i);
+          const switchesMatch = prompt.match(/(?:Switches|Number of Switches|Light Switches).*?(\d+)/i);
           
           // Default values adjusted for garage vs house
-          const panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
-          const circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
-          const outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
-          const switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
+          let panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
+          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
+          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
+          let switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
+          
+          // Validation and sanity checks
+          if (panelSize < 60 || panelSize > 400) panelSize = isGarage ? 100 : 200;
+          if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
+          if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
+          if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
+          
+          // Additional sanity check: for garages, cap outlets at reasonable number based on size
+          // Typical: 1 outlet per 50-100 sq ft for garages
+          if (isGarage) {
+            const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+            const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 600;
+            const maxReasonableOutlets = Math.ceil(sqft / 50); // 1 per 50 sq ft max
+            if (outlets > maxReasonableOutlets) {
+              outlets = Math.min(maxReasonableOutlets, 12); // Cap at 12 for garages
+            }
+          }
           
           // Electrical pricing (CAD) - adjusted for garage
           const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
