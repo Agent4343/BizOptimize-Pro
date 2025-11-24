@@ -549,8 +549,11 @@ ${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` 
       const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 2000; // Default to 2000 if not found
       
       // Determine project type (garage, house, etc.)
-      const isGarage = /garage/i.test(promptText);
-      const isHouse = /house|home|residential/i.test(promptText);
+      // Check both the prompt text and explicit project type field
+      const projectTypeMatch = promptText.match(/Project Type:\s*([^\n]+)/i);
+      const projectTypeValue = projectTypeMatch ? projectTypeMatch[1].toLowerCase() : '';
+      const isGarage = /garage/i.test(promptText) || projectTypeValue.includes('garage');
+      const isHouse = (/house|home|residential/i.test(promptText) && !isGarage) || projectTypeValue.includes('house') || projectTypeValue.includes('residential');
       
       // Cost per sq ft varies by project type
       // Garage: $40-60/sq ft, House: $150-300/sq ft

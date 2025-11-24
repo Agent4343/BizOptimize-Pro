@@ -79,6 +79,9 @@ function getTradeSpecificPrompt(trade: string, formData: any): string {
 
 // Render trade-specific form fields
 function renderTradeSpecificFields(trade: string, formData: any, setFormData: any) {
+  const isGarage = formData.projectType === 'garage';
+  const isHouse = formData.projectType === 'house';
+  
   switch(trade.toLowerCase()) {
     case 'electrical':
       return (
@@ -146,28 +149,39 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
     case 'plumbing':
       return (
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Number of Fixtures</label>
-            <Input
-              placeholder="Toilets, sinks, showers, etc."
-              value={formData.plumbingFixtures}
-              onChange={(e) => setFormData({...formData, plumbingFixtures: e.target.value})}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Water Heater Type</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.plumbingWaterHeater}
-              onChange={(e) => setFormData({...formData, plumbingWaterHeater: e.target.value})}
-            >
-              <option value="">Select water heater...</option>
-              <option value="tank">Tank</option>
-              <option value="tankless">Tankless</option>
-              <option value="heat-pump">Heat Pump</option>
-              <option value="none">No Water Heater</option>
-            </select>
-          </div>
+          {!isGarage && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Number of Fixtures</label>
+              <Input
+                placeholder="Toilets, sinks, showers, etc."
+                value={formData.plumbingFixtures}
+                onChange={(e) => setFormData({...formData, plumbingFixtures: e.target.value})}
+              />
+            </div>
+          )}
+          {isGarage && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Garages typically don't require plumbing fixtures. If you need water service for a utility sink or other use, please specify in "Special Requirements" below.
+              </p>
+            </div>
+          )}
+          {!isGarage && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Water Heater Type</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.plumbingWaterHeater}
+                onChange={(e) => setFormData({...formData, plumbingWaterHeater: e.target.value})}
+              >
+                <option value="">Select water heater...</option>
+                <option value="tank">Tank</option>
+                <option value="tankless">Tankless</option>
+                <option value="heat-pump">Heat Pump</option>
+                <option value="none">No Water Heater</option>
+              </select>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium">Drains/Water Lines</label>
             <Input
@@ -191,6 +205,13 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
     case 'hvac':
       return (
         <div className="space-y-4">
+          {isGarage && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Garages typically don't require full HVAC systems. If you need heating/cooling, specify the type below.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium">System Type</label>
             <select
@@ -199,11 +220,23 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
               onChange={(e) => setFormData({...formData, hvacSystemType: e.target.value})}
             >
               <option value="">Select system type...</option>
-              <option value="forced-air">Forced Air</option>
-              <option value="heat-pump">Heat Pump</option>
-              <option value="boiler">Boiler</option>
-              <option value="ductless-mini-split">Ductless Mini-Split</option>
-              <option value="radiant">Radiant</option>
+              {!isGarage && (
+                <>
+                  <option value="forced-air">Forced Air</option>
+                  <option value="heat-pump">Heat Pump</option>
+                  <option value="boiler">Boiler</option>
+                  <option value="ductless-mini-split">Ductless Mini-Split</option>
+                  <option value="radiant">Radiant</option>
+                </>
+              )}
+              {isGarage && (
+                <>
+                  <option value="none">No HVAC Required</option>
+                  <option value="space-heater">Space Heater</option>
+                  <option value="ductless-mini-split">Ductless Mini-Split</option>
+                  <option value="radiant-floor">Radiant Floor Heating</option>
+                </>
+              )}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -577,7 +610,7 @@ function ConstructionPageContent() {
           prompt: `Trade-specific construction estimate:
 Selected Trade: ${selectedTrade}
 Project Name: ${formData.projectName || 'Unnamed Project'}
-Project Type: ${formData.projectType || 'Not specified'}
+Project Type: ${formData.projectType || 'Not specified'} ${formData.projectType === 'garage' ? '(This is a GARAGE build, not a house. Adjust questions and pricing accordingly.)' : ''}
 Location: ${formData.location || 'Not specified'}
 Square Footage: ${formData.squareFootage || 'N/A'} sq ft
 ${getTradeSpecificPrompt(selectedTrade, formData)}
@@ -586,7 +619,7 @@ Access Issues: ${formData.accessIssues || 'None'}
 Timeline: ${formData.timeline || 'Standard'}
 Additional Notes: ${formData.description || 'None'}
 
-Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete line-item breakdown.`,
+IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.projectType === 'house' ? 'HOUSE/RESIDENTIAL HOME' : formData.projectType.toUpperCase()} project. Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete line-item breakdown appropriate for this project type.`,
           businessType: 'construction',
           optimizationType: 'estimate',
           trade: selectedTrade
@@ -695,18 +728,20 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Project Type</label>
+                    <label className="text-sm font-medium">Project Type *</label>
                     <select
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={formData.projectType}
                       onChange={(e) => setFormData({...formData, projectType: e.target.value})}
+                      required
                     >
                       <option value="">Select project type...</option>
-                      <option value="new-construction">New Construction</option>
-                      <option value="renovation">Renovation</option>
-                      <option value="addition">Addition</option>
-                      <option value="repair">Repair</option>
-                      <option value="commercial">Commercial</option>
+                      <option value="garage">Garage</option>
+                      <option value="house">House / Residential Home</option>
+                      <option value="commercial">Commercial Building</option>
+                      <option value="addition">Addition / Extension</option>
+                      <option value="renovation">Renovation / Remodel</option>
+                      <option value="repair">Repair / Maintenance</option>
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -782,7 +817,7 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
 
               <Button 
                 onClick={generateEstimate} 
-                disabled={loading || !selectedTrade || !formData.location || !hasAccess}
+                disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !hasAccess}
                 className="w-full"
               >
                 {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
