@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
           return `# Electrical Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
@@ -231,7 +231,7 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
           return `# Plumbing Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **Fixtures**: ${fixtures}${isGarage ? ' (Utility sink if applicable)' : ''}
@@ -281,7 +281,7 @@ ${generateCodeComplianceSection(provinceValue, 'plumbing')}`;
           return `# HVAC Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **System Type**: ${noHVAC ? 'No HVAC Required' : systemType}
@@ -337,7 +337,7 @@ ${generateCodeComplianceSection(provinceValue, 'hvac')}`;
           return `# Roofing Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Material**: ${material}
 - **Roof Size**: ${sqft.toLocaleString()} sq ft
@@ -386,7 +386,7 @@ ${generateCodeComplianceSection(provinceValue, 'roofing')}`;
           return `# Foundation Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Foundation Type**: ${type}
 - **Size**: ${sqft.toLocaleString()} sq ft
@@ -432,7 +432,7 @@ ${generateCodeComplianceSection(provinceValue, 'foundation')}`;
           return `# Drywall Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Area**: ${area.toLocaleString()} sq ft
 - **Finish Level**: Level ${finishLevel}
@@ -486,7 +486,7 @@ ${generateCodeComplianceSection(provinceValue, 'drywall')}`;
           return `# Flooring Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Flooring Type**: ${type}
 - **Area**: ${area.toLocaleString()} sq ft
@@ -529,7 +529,7 @@ ${generateCodeComplianceSection(provinceValue, 'flooring')}`;
           return `# Painting Estimate
 
 ## Project Details
-- **Location**: ${location || 'Not specified'}
+- **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${province}
 - **Area**: ${area.toLocaleString()} sq ft
 - **Number of Coats**: ${coats}
@@ -785,9 +785,9 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
    - Ensure structural requirements are met
    - Validate permit requirements
 
-2. **Pricing Validation Agent**: Expert in ${province} construction pricing
-   - Verify labor rates are current for ${province} market
-   - Validate material costs against ${province} market rates
+2. **Pricing Validation Agent**: Expert in ${finalProvince} construction pricing
+   - Verify labor rates are current for ${finalProvince} market
+   - Validate material costs against ${finalProvince} market rates
    - Check if pricing aligns with industry standards
    - Flag any unusually high or low costs
 
@@ -799,8 +799,8 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
    - Fire: Fire code requirements
 
 Review the provided estimate and provide:
-- Code compliance verification for ${province}
-- Pricing validation against ${province} market rates
+- Code compliance verification for ${finalProvince}
+- Pricing validation against ${finalProvince} market rates
 - Trade-specific code references
 - Any compliance issues or missing requirements
 - Recommended adjustments for accuracy
@@ -818,7 +818,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${province})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvince})\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
