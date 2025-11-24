@@ -539,12 +539,135 @@ function ConstructionPageContent() {
   const [savings, setSavings] = useState<number>(0);
   const [selectedTrade, setSelectedTrade] = useState<string>(searchParams?.get('trade') || "");
   const [hasAccess, setHasAccess] = useState<boolean>(false);
+  
+  // Conversational flow state
+  const [conversationMode, setConversationMode] = useState(false);
+  const [conversation, setConversation] = useState<any[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState<string>("");
+  const [currentAnswer, setCurrentAnswer] = useState<string>("");
+  const [isReadyToEstimate, setIsReadyToEstimate] = useState(false);
+  const [basicInfo, setBasicInfo] = useState({
+    projectType: "",
+    location: "",
+    squareFootage: "",
+    projectName: ""
+  });
 
   useEffect(() => {
     if (selectedTrade) {
       setHasAccess(hasTradeAccess(selectedTrade as Trade));
     }
   }, [selectedTrade]);
+
+  // Start conversation flow
+  const startConversation = async () => {
+    if (!basicInfo.projectType || !basicInfo.location || !basicInfo.squareFootage) {
+      alert('Please fill in Project Type, Location, and Square Footage to start.');
+      return;
+    }
+    
+    setConversationMode(true);
+    setConversation([]);
+    setIsReadyToEstimate(false);
+    
+    // Get first question
+    await getNextQuestion();
+  };
+
+  // Get next question from AI
+  const getNextQuestion = async (answer?: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/ai/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trade: selectedTrade,
+          conversation: conversation,
+          currentAnswer: answer || currentAnswer,
+          projectType: basicInfo.projectType,
+          location: basicInfo.location,
+          squareFootage: basicInfo.squareFootage
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        if (data.ready) {
+          setIsReadyToEstimate(true);
+          setCurrentQuestion("");
+          // Generate estimate with all collected info
+          await generateEstimateFromConversation(data.conversation);
+        } else {
+          setCurrentQuestion(data.question);
+          setConversation(data.conversation);
+        }
+      }
+    } catch (error) {
+      console.error('Error getting question:', error);
+      setCurrentQuestion('Error generating question. Please try again.');
+    } finally {
+      setLoading(false);
+      setCurrentAnswer("");
+    }
+  };
+
+  // Submit answer and get next question
+  const submitAnswer = async () => {
+    if (!currentAnswer.trim()) return;
+    
+    const newConversation = [...conversation, 
+      { role: 'assistant', content: currentQuestion },
+      { role: 'user', content: currentAnswer }
+    ];
+    setConversation(newConversation);
+    await getNextQuestion(currentAnswer);
+  };
+
+  // Generate final estimate from conversation
+  const generateEstimateFromConversation = async (finalConversation: any[]) => {
+    setLoading(true);
+    try {
+      // Build prompt from conversation
+      const conversationText = finalConversation
+        .map((msg: any) => `${msg.role === 'assistant' ? 'Q' : 'A'}: ${msg.content}`)
+        .join('\n');
+
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `Trade-specific construction estimate:
+Selected Trade: ${selectedTrade}
+Project Name: ${basicInfo.projectName || 'Unnamed Project'}
+Project Type: ${basicInfo.projectType}
+Location: ${basicInfo.location}
+Square Footage: ${basicInfo.squareFootage} sq ft
+
+Conversation Details:
+${conversationText}
+
+Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete line-item breakdown based on all the information gathered.`,
+          businessType: 'construction',
+          optimizationType: 'estimate',
+          trade: selectedTrade
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setResult(data.result);
+        setTotalCost(data.totalCost || 0);
+        setSavings(data.estimatedSavings || 0);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setResult('Error generating estimate. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const [formData, setFormData] = useState({
     projectName: "",
     projectType: "",
@@ -715,6 +838,154 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </select>
               </div>
 
+              {/* Basic Info - Required before starting conversation */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Basic Project Information *</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project Name</label>
+                    <Input
+                      placeholder="Smith Family Garage"
+                      value={basicInfo.projectName}
+                      onChange={(e) => setBasicInfo({...basicInfo, projectName: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project Type *</label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={basicInfo.projectType}
+                      onChange={(e) => setBasicInfo({...basicInfo, projectType: e.target.value})}
+                      required
+                      disabled={conversationMode}
+                    >
+                      <option value="">Select project type...</option>
+                      <option value="garage">Garage</option>
+                      <option value="house">House / Residential Home</option>
+                      <option value="commercial">Commercial Building</option>
+                      <option value="addition">Addition / Extension</option>
+                      <option value="renovation">Renovation / Remodel</option>
+                      <option value="repair">Repair / Maintenance</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Square Footage *</label>
+                      <Input
+                        placeholder="600"
+                        type="number"
+                        value={basicInfo.squareFootage}
+                        onChange={(e) => setBasicInfo({...basicInfo, squareFootage: e.target.value})}
+                        disabled={conversationMode}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Location *</label>
+                      <Input
+                        placeholder="St. John's, NL"
+                        value={basicInfo.location}
+                        onChange={(e) => setBasicInfo({...basicInfo, location: e.target.value})}
+                        disabled={conversationMode}
+                      />
+                    </div>
+                  </div>
+                  {!conversationMode && (
+                    <Button 
+                      onClick={startConversation}
+                      disabled={!basicInfo.projectType || !basicInfo.location || !basicInfo.squareFootage || !selectedTrade || !hasAccess}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Start Question Flow →
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Conversational Q&A Flow */}
+              {conversationMode && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold mb-3">Answer Questions for Accurate Quote</h3>
+                  
+                  {/* Conversation History */}
+                  <div className="space-y-3 mb-4 max-h-64 overflow-y-auto bg-gray-50 p-4 rounded-lg">
+                    {conversation.map((msg: any, idx: number) => (
+                      <div key={idx} className={`flex ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                        <div className={`max-w-[80%] p-3 rounded-lg ${
+                          msg.role === 'assistant' 
+                            ? 'bg-blue-100 text-blue-900' 
+                            : 'bg-green-100 text-green-900'
+                        }`}>
+                          <div className="text-xs font-semibold mb-1">
+                            {msg.role === 'assistant' ? '🤖 Assistant' : '👤 You'}
+                          </div>
+                          <div className="text-sm">{msg.content}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Current Question */}
+                  {currentQuestion && !isReadyToEstimate && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="text-sm font-semibold text-blue-900 mb-2">Current Question:</div>
+                      <div className="text-base text-blue-800">{currentQuestion}</div>
+                    </div>
+                  )}
+
+                  {/* Answer Input */}
+                  {!isReadyToEstimate && currentQuestion && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Your Answer:</label>
+                      <Input
+                        placeholder="Type your answer here..."
+                        value={currentAnswer}
+                        onChange={(e) => setCurrentAnswer(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            submitAnswer();
+                          }
+                        }}
+                        disabled={loading}
+                      />
+                      <Button 
+                        onClick={submitAnswer}
+                        disabled={loading || !currentAnswer.trim()}
+                        className="w-full"
+                      >
+                        {loading ? 'Getting Next Question...' : 'Submit Answer →'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Ready to Estimate */}
+                  {isReadyToEstimate && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="text-sm font-semibold text-green-900 mb-2">✓ Ready to Generate Estimate</div>
+                      <div className="text-sm text-green-700 mb-3">
+                        We have all the information needed. Generating your estimate...
+                      </div>
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={() => {
+                      setConversationMode(false);
+                      setConversation([]);
+                      setCurrentQuestion("");
+                      setIsReadyToEstimate(false);
+                    }}
+                    variant="outline"
+                    className="w-full mt-4"
+                  >
+                    ← Back to Form Mode
+                  </Button>
+                </div>
+              )}
+
+              {/* Old Form Fields - Hidden in conversation mode */}
+              {!conversationMode && (
+                <>
               {/* General Project Info */}
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold mb-3">General Project Information</h3>
