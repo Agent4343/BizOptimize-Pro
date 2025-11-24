@@ -588,6 +588,7 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       
       // Detailed construction line items
       const foundationCost = Math.round(sqft * (isGarage ? 8 : 15));
+      const sitePrepCost = Math.round(foundationCost * 0.3); // Site prep is 30% of foundation
       const framingCost = Math.round(sqft * (isGarage ? 12 : 25));
       const roofingCost = Math.round(sqft * (isGarage ? 6 : 12));
       const sidingCost = Math.round(sqft * (isGarage ? 5 : 10));
@@ -600,9 +601,17 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       const doorsWindowsCost = Math.round(sqft * (isGarage ? 3 : 10));
       const paintCost = Math.round(sqft * (isGarage ? 1 : 3));
       const permitsCost = Math.round(sqft * 2);
-      const contractorOverhead = Math.round((foundationCost + framingCost + roofingCost + sidingCost + electricalCost + plumbingCost + hvacCost + insulationCost + drywallCost + flooringCost + doorsWindowsCost + paintCost) * 0.15);
       
-      const totalCost = foundationCost + framingCost + roofingCost + sidingCost + electricalCost + plumbingCost + hvacCost + insulationCost + drywallCost + flooringCost + doorsWindowsCost + paintCost + permitsCost + contractorOverhead;
+      // Calculate base cost (all costs before overhead)
+      const baseCost = foundationCost + sitePrepCost + framingCost + roofingCost + sidingCost + 
+                       electricalCost + plumbingCost + hvacCost + insulationCost + drywallCost + 
+                       flooringCost + doorsWindowsCost + paintCost + permitsCost;
+      
+      // Overhead & profit is 15% of base cost
+      const contractorOverhead = Math.round(baseCost * 0.15);
+      
+      // Total cost includes everything
+      const totalCost = baseCost + contractorOverhead;
       
       // Calculate potential savings (15-25% of total cost)
       const savingsPercentage = 0.20; // 20% average
@@ -620,12 +629,19 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       const finalWeeks = 1;
       const totalWeeks = foundationWeeks + framingWeeks + roofingWeeks + mechanicalsWeeks + finishingWeeks + finalWeeks;
       
-      // Calculate individual savings opportunities
-      const localSourcing = Math.round(totalCost * 0.03);
-      const seasonalTiming = Math.round(totalCost * 0.05);
-      const rebates = Math.round(totalCost * 0.02);
-      const valueEngineering = Math.round(totalCost * 0.07);
-      const ownerSupplied = Math.round(totalCost * 0.03);
+      // Calculate individual savings opportunities (must sum to potentialSavings)
+      // Total should be 20%: 3% + 5% + 2% + 7% + 3% = 20%
+      const localSourcing = Math.round(potentialSavings * 0.15); // 15% of savings
+      const seasonalTiming = Math.round(potentialSavings * 0.25); // 25% of savings
+      const rebates = Math.round(potentialSavings * 0.10); // 10% of savings
+      const valueEngineering = Math.round(potentialSavings * 0.35); // 35% of savings
+      const ownerSupplied = Math.round(potentialSavings * 0.15); // 15% of savings
+      
+      // Ensure they sum exactly to potentialSavings (handle rounding)
+      const savingsSum = localSourcing + seasonalTiming + rebates + valueEngineering + ownerSupplied;
+      const savingsDifference = potentialSavings - savingsSum;
+      // Add any rounding difference to valueEngineering (largest component)
+      const adjustedValueEngineering = valueEngineering + savingsDifference;
       
       const projectType = isGarage ? 'Garage' : (isHouse ? 'Residential Home' : 'Building');
       
@@ -639,7 +655,7 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
 
 ### Site Preparation & Foundation
 - **Foundation**: $${foundationCost.toLocaleString()}
-- **Site Prep & Excavation**: $${Math.round(foundationCost * 0.3).toLocaleString()}
+- **Site Prep & Excavation**: $${sitePrepCost.toLocaleString()}
 
 ### Structure
 - **Framing (Walls & Roof)**: $${framingCost.toLocaleString()}
@@ -668,7 +684,7 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
 1. **Local Material Sourcing**: Save $${localSourcing.toLocaleString()}
 2. **Seasonal Construction Timing**: Save $${seasonalTiming.toLocaleString()}
 3. **Energy Efficiency Rebates**: Save $${rebates.toLocaleString()}
-4. **Value Engineering**: Save $${valueEngineering.toLocaleString()}
+4. **Value Engineering**: Save $${adjustedValueEngineering.toLocaleString()}
 5. **Owner-Supplied Items**: Save $${ownerSupplied.toLocaleString()}
 
 **Total Potential Savings: $${potentialSavings.toLocaleString()}**
