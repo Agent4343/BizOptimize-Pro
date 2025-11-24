@@ -562,11 +562,19 @@ function ConstructionPageContent() {
 
   // Start conversation flow
   const startConversation = async () => {
+    // Sync formData to basicInfo for conversation flow
+    setBasicInfo({
+      projectName: formData.projectName,
+      projectType: formData.projectType,
+      location: formData.location,
+      squareFootage: formData.squareFootage
+    });
+    
     // Validate inputs
     const validation = validateConstructionForm({
-      projectType: basicInfo.projectType,
-      location: basicInfo.location,
-      squareFootage: basicInfo.squareFootage,
+      projectType: formData.projectType,
+      location: formData.location,
+      squareFootage: formData.squareFootage,
       trade: selectedTrade
     });
     
@@ -847,68 +855,78 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </select>
               </div>
 
-              {/* Basic Info - Required before starting conversation */}
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold mb-3">Basic Project Information *</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Project Name</label>
-                    <Input
-                      placeholder="Smith Family Garage"
-                      value={basicInfo.projectName}
-                      onChange={(e) => setBasicInfo({...basicInfo, projectName: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Project Type *</label>
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={basicInfo.projectType}
-                      onChange={(e) => setBasicInfo({...basicInfo, projectType: e.target.value})}
-                      required
-                      disabled={conversationMode}
-                    >
-                      <option value="">Select project type...</option>
-                      <option value="garage">Garage</option>
-                      <option value="house">House / Residential Home</option>
-                      <option value="commercial">Commercial Building</option>
-                      <option value="addition">Addition / Extension</option>
-                      <option value="renovation">Renovation / Remodel</option>
-                      <option value="repair">Repair / Maintenance</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+              {/* Basic Info - Only show when starting conversation OR as part of unified form */}
+              {!conversationMode && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Project Information *</h3>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Square Footage *</label>
+                      <label className="text-sm font-medium">Project Name</label>
                       <Input
-                        placeholder="600"
-                        type="number"
-                        value={basicInfo.squareFootage}
-                        onChange={(e) => setBasicInfo({...basicInfo, squareFootage: e.target.value})}
-                        disabled={conversationMode}
+                        placeholder="Smith Family Garage"
+                        value={formData.projectName}
+                        onChange={(e) => setFormData({...formData, projectName: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Location *</label>
-                      <Input
-                        placeholder="St. John's, NL"
-                        value={basicInfo.location}
-                        onChange={(e) => setBasicInfo({...basicInfo, location: e.target.value})}
-                        disabled={conversationMode}
-                      />
+                      <label className="text-sm font-medium">Project Type *</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.projectType}
+                        onChange={(e) => setFormData({...formData, projectType: e.target.value})}
+                        required
+                      >
+                        <option value="">Select project type...</option>
+                        <option value="garage">Garage</option>
+                        <option value="house">House / Residential Home</option>
+                        <option value="commercial">Commercial Building</option>
+                        <option value="addition">Addition / Extension</option>
+                        <option value="renovation">Renovation / Remodel</option>
+                        <option value="repair">Repair / Maintenance</option>
+                      </select>
                     </div>
-                  </div>
-                  {!conversationMode && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Square Footage *</label>
+                        <Input
+                          placeholder="600"
+                          type="number"
+                          value={formData.squareFootage}
+                          onChange={(e) => setFormData({...formData, squareFootage: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Location *</label>
+                        <Input
+                          placeholder="St. John's, NL"
+                          value={formData.location}
+                          onChange={(e) => setFormData({...formData, location: e.target.value})}
+                        />
+                      </div>
+                    </div>
                     <Button 
                       onClick={startConversation}
-                      disabled={!basicInfo.projectType || !basicInfo.location || !basicInfo.squareFootage || !selectedTrade || !hasAccess}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      disabled={!formData.projectType || !formData.location || !formData.squareFootage || !selectedTrade || !hasAccess}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
                     >
-                      Start Question Flow →
+                      💬 Start Question Flow for Accurate Quote
                     </Button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Basic Info for Conversation Mode - Sync with formData */}
+              {conversationMode && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Project Information</h3>
+                  <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
+                    <div><strong>Project:</strong> {basicInfo.projectName || formData.projectName || 'Unnamed'}</div>
+                    <div><strong>Type:</strong> {basicInfo.projectType || formData.projectType || 'Not specified'}</div>
+                    <div><strong>Size:</strong> {basicInfo.squareFootage || formData.squareFootage || 'N/A'} sq ft</div>
+                    <div><strong>Location:</strong> {basicInfo.location || formData.location || 'Not specified'}</div>
+                  </div>
+                </div>
+              )}
 
               {/* Conversational Q&A Flow */}
               {conversationMode && (
