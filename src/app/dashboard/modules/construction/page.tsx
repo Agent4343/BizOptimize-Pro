@@ -838,3 +838,18 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
     </div>
   );
 }
+
+export default function ConstructionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl mb-4">🏗️</div>
+          <p className="text-gray-600">Loading estimator...</p>
+        </div>
+      </div>
+    }>
+      <ConstructionPageContent />
+    </Suspense>
+  );
+}
