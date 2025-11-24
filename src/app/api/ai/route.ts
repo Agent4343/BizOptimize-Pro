@@ -517,6 +517,8 @@ function evaluateServiceRequest(message: string, formData: MetadataRecord) {
 const COMPONENT_LIBRARY = [
   { id: "plugs", label: "Plugs / Receptacles", keywords: ["plug", "outlet", "receptacle"], rate: 1 / 60, unitCost: 45 },
   { id: "switches", label: "Switches", keywords: ["switch"], rate: 1 / 120, unitCost: 35 },
+  { id: "lighting", label: "Lighting Fixtures", keywords: ["light", "fixture", "lighting"], rate: 1 / 80, unitCost: 120 },
+  { id: "panels", label: "Electrical Panels", keywords: ["panel", "breaker"], rate: 1 / 2000, unitCost: 850 },
 ];
 
 function deriveComponentInsights(message: string, formData: MetadataRecord) {
@@ -527,16 +529,26 @@ function deriveComponentInsights(message: string, formData: MetadataRecord) {
   }
 
   const lines: string[] = [];
+  let totalComponentCost = 0;
   COMPONENT_LIBRARY.forEach((component) => {
     const matchesKeyword = component.keywords.some((keyword) => lower.includes(keyword));
     if (matchesKeyword) {
       const quantity = Math.max(1, Math.round(squareFootage * component.rate));
-      const totalCost = Math.round(quantity * component.unitCost);
+      const cost = Math.round(quantity * component.unitCost);
       lines.push(
-        `🔌 ${component.label}: approx. ${quantity} units @ $${component.unitCost} (≈ $${totalCost.toLocaleString()}).`,
+        `🔌 ${component.label}: approx. ${quantity} units @ $${component.unitCost} (≈ $${cost.toLocaleString()}).`,
       );
+      totalComponentCost += cost;
     }
   });
+
+  if (!lines.length) {
+    return "";
+  }
+
+  if (lines.length > 1) {
+    lines.push(`Subtotal for requested components: ~$${totalComponentCost.toLocaleString()}.`);
+  }
 
   return lines.join("\n");
 }
