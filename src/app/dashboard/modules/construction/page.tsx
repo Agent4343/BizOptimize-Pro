@@ -1086,13 +1086,18 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </div>
               </div>
 
-              <Button 
-                onClick={generateEstimate} 
-                disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !hasAccess}
-                className="w-full"
-              >
-                {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
-              </Button>
+              {/* Generate Estimate Button - Only show in form mode */}
+              {!conversationMode && (
+                <Button 
+                  onClick={generateEstimate} 
+                  disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !hasAccess}
+                  className="w-full"
+                >
+                  {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
+                </Button>
+              )}
+                </>
+              )}
             </CardContent>
           </Card>
 
