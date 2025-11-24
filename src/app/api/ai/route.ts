@@ -376,7 +376,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + '\n\n---\n\n## Compliance & Pricing Validation (${province})\n\n' + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${province})\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
