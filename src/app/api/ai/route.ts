@@ -1,5 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper function to call OpenAI API
+async function callOpenAI(prompt: string, systemPrompt: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY not configured');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4-turbo-preview', // or 'gpt-3.5-turbo' for cheaper option
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'OpenAI API error');
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+
+// Helper function to call OpenRouter API
+async function callOpenRouter(prompt: string, systemPrompt: string) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY not configured');
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://bizoptimize-pro.vercel.app',
+      'X-Title': 'BizOptimize Pro',
+    },
+    body: JSON.stringify({
+      model: 'anthropic/claude-3.5-sonnet', // or 'openai/gpt-4-turbo'
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'OpenRouter API error');
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -182,15 +250,76 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
-    const defaultResponse = (businessResponses && optimizationType in businessResponses 
-      ? (businessResponses as any)[optimizationType] 
-      : null) || 
-      "Analysis completed. Optimization recommendations generated based on your business data.";
+    // Try to use AI API if configured, otherwise use mock responses
+    let defaultResponse: string;
+    let useAI = false;
+
+    // Check if we have an API key configured
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
+    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+
+    if (hasOpenRouter || hasOpenAI) {
+      try {
+        useAI = true;
+        // Build system prompt based on business type
+        const systemPrompts: Record<string, Record<string, string>> = {
+          construction: {
+            estimate: `You are an expert construction estimator. Generate detailed, accurate construction estimates in markdown format with:
+- Project cost breakdown by component (foundation, framing, roofing, etc.)
+- Cost per square foot
+- Potential savings opportunities
+- Implementation timeline
+- All costs in CAD dollars
+- Use realistic Canadian construction pricing`
+          },
+          trucking: {
+            fleet: `You are a fleet optimization expert. Generate detailed fleet analysis reports in markdown format with:
+- Current performance metrics
+- Optimization recommendations
+- Financial projections
+- ROI analysis
+- All costs in CAD dollars`
+          },
+          restaurant: {
+            inventory: `You are a restaurant operations expert. Generate detailed optimization analysis in markdown format with:
+- Current metrics
+- Optimization strategies
+- Cost savings breakdown
+- Implementation timeline
+- All costs in CAD dollars`
+          }
+        };
+
+        const systemPrompt = systemPrompts[businessType]?.[optimizationType] || 
+          'You are a business optimization expert. Generate detailed analysis and recommendations in markdown format.';
+
+        // Use OpenRouter if available, otherwise OpenAI
+        if (hasOpenRouter) {
+          defaultResponse = await callOpenRouter(prompt, systemPrompt);
+        } else {
+          defaultResponse = await callOpenAI(prompt, systemPrompt);
+        }
+      } catch (aiError) {
+        console.error('AI API error, falling back to mock:', aiError);
+        // Fall back to mock responses if AI fails
+        useAI = false;
+      }
+    }
+
+    // Use mock responses if AI is not configured or failed
+    if (!useAI) {
+      const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
+      defaultResponse = (businessResponses && optimizationType in businessResponses 
+        ? (businessResponses as any)[optimizationType] 
+        : null) || 
+        "Analysis completed. Optimization recommendations generated based on your business data.";
+    }
 
     // Extract cost and savings amounts from response
-    const totalCostMatch = defaultResponse.match(/\*\*Total Project Cost\*\*: \$([\d,]+)/);
-    const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/);
+    const totalCostMatch = defaultResponse.match(/\*\*Total Project Cost\*\*: \$([\d,]+)/) ||
+                          defaultResponse.match(/Total.*Cost.*\$([\d,]+)/i);
+    const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/) ||
+                        defaultResponse.match(/Total.*Savings.*\$([\d,]+)/i);
     
     const totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
     const estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
@@ -201,7 +330,8 @@ export async function POST(request: NextRequest) {
       estimatedSavings,
       totalCost,
       businessType,
-      optimizationType
+      optimizationType,
+      aiGenerated: useAI
     });
 
   } catch (error) {
