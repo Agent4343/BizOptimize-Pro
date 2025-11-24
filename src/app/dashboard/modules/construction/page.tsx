@@ -934,24 +934,43 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                         <option value="repair">Repair / Maintenance</option>
                       </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Square Footage *</label>
-                        <Input
-                          placeholder="600"
-                          type="number"
-                          value={formData.squareFootage}
-                          onChange={(e) => setFormData({...formData, squareFootage: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Location *</label>
-                        <Input
-                          placeholder="St. John's, NL"
-                          value={formData.location}
-                          onChange={(e) => setFormData({...formData, location: e.target.value})}
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Square Footage *</label>
+                      <Input
+                        placeholder="600"
+                        type="number"
+                        min="50"
+                        max="100000"
+                        value={formData.squareFootage}
+                        onChange={(e) => setFormData({...formData, squareFootage: e.target.value})}
+                      />
+                      <p className="text-xs text-gray-500">Minimum: 50 sq ft, Maximum: 100,000 sq ft</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">City/Location *</label>
+                      <Input
+                        placeholder="St. John's"
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      />
+                      <p className="text-xs text-gray-500">Enter city or location name</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Province/Territory *</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.province}
+                        onChange={(e) => setFormData({...formData, province: e.target.value})}
+                        required
+                      >
+                        <option value="">Select province/territory...</option>
+                        {PROVINCES_AND_TERRITORIES.map((province) => (
+                          <option key={province.value} value={province.value}>
+                            {province.label} ({province.code})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500">Required for accurate code compliance and pricing</p>
                     </div>
                     <Button 
                       onClick={startConversation}
