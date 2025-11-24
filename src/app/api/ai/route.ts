@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       // Extract location for province detection
       const locationMatch = promptText.match(/Location:\s*(.+?)(?:\n|$)/i);
       const location = locationMatch ? locationMatch[1].trim() : '';
-      const province = extractProvince(location);
+      const { province, costMultiplier } = extractProvinceEnhanced(location);
       
       // Trade-specific calculation functions
       const tradeCalculators: Record<string, (prompt: string) => string> = {
