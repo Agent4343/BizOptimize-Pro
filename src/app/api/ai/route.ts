@@ -93,14 +93,36 @@ function extractProvince(location: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, businessType, optimizationType, trade } = body;
+    const { prompt, businessType, optimizationType, trade, province, location } = body;
 
     // Generate trade-specific estimate
     const generateTradeSpecificEstimate = (promptText: string, tradeType: string) => {
-      // Extract location for province detection
+      // Extract location and province from prompt or use provided values
       const locationMatch = promptText.match(/Location:\s*(.+?)(?:\n|$)/i);
-      const location = locationMatch ? locationMatch[1].trim() : '';
-      const { province, costMultiplier } = extractProvinceEnhanced(location);
+      const provinceMatch = promptText.match(/Province:\s*(.+?)(?:\n|$)/i);
+      
+      // Use provided province if available, otherwise extract from location
+      const extractedLocation = locationMatch ? locationMatch[1].trim() : (location || '');
+      const providedProvince = province || (provinceMatch ? provinceMatch[1].trim() : '');
+      
+      // If province is provided directly, use it; otherwise extract from location
+      let finalProvince: string;
+      let costMultiplier: number;
+      
+      if (providedProvince) {
+        // Province was provided directly from dropdown
+        const provinceData = extractProvinceEnhanced(providedProvince);
+        finalProvince = providedProvince; // Use the provided province name
+        costMultiplier = provinceData.costMultiplier;
+      } else {
+        // Fallback to extracting from location
+        const provinceData = extractProvinceEnhanced(extractedLocation);
+        finalProvince = provinceData.province;
+        costMultiplier = provinceData.costMultiplier;
+      }
+      
+      const location = extractedLocation;
+      const province = finalProvince;
       
       // Trade-specific calculation functions
       const tradeCalculators: Record<string, (prompt: string) => string> = {

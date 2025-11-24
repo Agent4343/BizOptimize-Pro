@@ -551,7 +551,8 @@ function ConstructionPageContent() {
     projectType: "",
     location: "",
     squareFootage: "",
-    projectName: ""
+    projectName: "",
+    province: ""
   });
 
   useEffect(() => {
@@ -690,6 +691,7 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
     projectType: "",
     squareFootage: "",
     location: "",
+    province: "",
     description: "",
     // Trade-specific fields
     electricalPanelSize: "",

@@ -152,12 +152,32 @@ export function validateEstimate(estimate: {
   };
 }
 
+// Validate province
+export function validateProvince(province: string): ValidationResult {
+  const validProvinces = [
+    'Newfoundland and Labrador', 'Nova Scotia', 'Prince Edward Island', 'New Brunswick',
+    'Quebec', 'Ontario', 'Manitoba', 'Saskatchewan', 'Alberta', 'British Columbia',
+    'Yukon', 'Northwest Territories', 'Nunavut'
+  ];
+  
+  if (!province || province.trim().length === 0) {
+    return { valid: false, errors: ['Province/territory is required'] };
+  }
+  
+  if (!validProvinces.includes(province)) {
+    return { valid: false, errors: [`Invalid province. Must be one of: ${validProvinces.join(', ')}`] };
+  }
+  
+  return { valid: true, errors: [] };
+}
+
 // Comprehensive form validation
 export function validateConstructionForm(data: {
   projectType: string;
   location: string;
   squareFootage: string | number;
   trade: string;
+  province?: string;
   [key: string]: any;
 }): ValidationResult {
   const errors: string[] = [];
@@ -173,6 +193,12 @@ export function validateConstructionForm(data: {
   
   const tradeResult = validateTrade(data.trade);
   if (!tradeResult.valid) errors.push(...tradeResult.errors);
+  
+  // Validate province if provided
+  if (data.province) {
+    const provinceResult = validateProvince(data.province);
+    if (!provinceResult.valid) errors.push(...provinceResult.errors);
+  }
   
   return {
     valid: errors.length === 0,
