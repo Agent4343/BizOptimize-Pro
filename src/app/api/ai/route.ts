@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
 - **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
@@ -232,7 +232,7 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **Fixtures**: ${fixtures}${isGarage ? ' (Utility sink if applicable)' : ''}
 - **Water Heater**: ${waterHeater ? 'Yes' : 'No'}${isGarage ? ' (Not typically required for garages)' : ''}
@@ -282,7 +282,7 @@ ${generateCodeComplianceSection(provinceValue, 'plumbing')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
 - **System Type**: ${noHVAC ? 'No HVAC Required' : systemType}
 - **Capacity**: ${capacity > 0 ? capacity.toLocaleString() + ' BTU' : 'N/A'}
@@ -338,7 +338,7 @@ ${generateCodeComplianceSection(provinceValue, 'hvac')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Material**: ${material}
 - **Roof Size**: ${sqft.toLocaleString()} sq ft
 
@@ -387,7 +387,7 @@ ${generateCodeComplianceSection(provinceValue, 'roofing')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Foundation Type**: ${type}
 - **Size**: ${sqft.toLocaleString()} sq ft
 
@@ -433,7 +433,7 @@ ${generateCodeComplianceSection(provinceValue, 'foundation')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Area**: ${area.toLocaleString()} sq ft
 - **Finish Level**: Level ${finishLevel}
 
@@ -487,7 +487,7 @@ ${generateCodeComplianceSection(provinceValue, 'drywall')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Flooring Type**: ${type}
 - **Area**: ${area.toLocaleString()} sq ft
 
@@ -530,7 +530,7 @@ ${generateCodeComplianceSection(provinceValue, 'flooring')}`;
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${province}
+- **Province**: ${provinceValue}
 - **Area**: ${area.toLocaleString()} sq ft
 - **Number of Coats**: ${coats}
 
