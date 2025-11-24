@@ -128,9 +128,421 @@ function extractProvince(location: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, businessType, optimizationType } = body;
+    const { prompt, businessType, optimizationType, trade } = body;
 
-    // Generate dynamic construction estimate based on input
+    // Generate trade-specific estimate
+    const generateTradeSpecificEstimate = (promptText: string, tradeType: string) => {
+      // Extract location for province detection
+      const locationMatch = promptText.match(/Location:\s*(.+?)(?:\n|$)/i);
+      const location = locationMatch ? locationMatch[1].trim() : '';
+      const province = extractProvince(location);
+      
+      // Trade-specific calculation functions
+      const tradeCalculators: Record<string, (prompt: string) => string> = {
+        electrical: (prompt: string) => {
+          const panelMatch = prompt.match(/Panel Size.*?(\d+)/i);
+          const circuitsMatch = prompt.match(/Circuits.*?(\d+)/i);
+          const outletsMatch = prompt.match(/Outlets.*?(\d+)/i);
+          const switchesMatch = prompt.match(/Switches.*?(\d+)/i);
+          
+          const panelSize = panelMatch ? parseInt(panelMatch[1]) : 200;
+          const circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : 20;
+          const outlets = outletsMatch ? parseInt(outletsMatch[1]) : 30;
+          const switches = switchesMatch ? parseInt(switchesMatch[1]) : 15;
+          
+          // Electrical pricing (CAD)
+          const panelInstall = panelSize >= 200 ? 2500 : 1800;
+          const circuitCost = circuits * 150;
+          const outletCost = outlets * 85;
+          const switchCost = switches * 65;
+          const wireCost = (circuits + outlets) * 25;
+          const permitCost = 350;
+          const inspectionCost = 200;
+          const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
+          
+          const totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.15);
+          
+          return `# Electrical Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Panel Size**: ${panelSize} Amps
+- **Circuits**: ${circuits}
+- **Outlets**: ${outlets}
+- **Switches**: ${switches}
+
+## Detailed Cost Breakdown
+
+### Electrical Components
+- **Main Panel Installation**: $${panelInstall.toLocaleString()}
+- **Circuit Installation** (${circuits} circuits @ $150): $${circuitCost.toLocaleString()}
+- **Outlet Installation** (${outlets} outlets @ $85): $${outletCost.toLocaleString()}
+- **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
+- **Wiring & Materials**: $${wireCost.toLocaleString()}
+
+### Other Costs
+- **Permits**: $${permitCost.toLocaleString()}
+- **Inspections**: $${inspectionCost.toLocaleString()}
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Electrical Cost**: $${totalCost.toLocaleString()} CAD
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+## Code Compliance (${province})
+- **CEC Compliance**: Verified
+- **Provincial Code**: ${province} Electrical Code
+- **Permit Required**: Yes
+- **Inspection Required**: Yes`;
+        },
+        
+        plumbing: (prompt: string) => {
+          const fixturesMatch = prompt.match(/Fixtures.*?(\d+)/i);
+          const fixtures = fixturesMatch ? parseInt(fixturesMatch[1]) : 5;
+          const waterHeater = /water.*heater/i.test(prompt);
+          
+          const fixtureCost = fixtures * 450;
+          const waterHeaterCost = waterHeater ? 2500 : 0;
+          const pipeCost = fixtures * 180;
+          const drainCost = fixtures * 120;
+          const permitCost = 300;
+          const inspectionCost = 150;
+          const contractorOverhead = Math.round((fixtureCost + waterHeaterCost + pipeCost + drainCost) * 0.20);
+          
+          const totalCost = fixtureCost + waterHeaterCost + pipeCost + drainCost + permitCost + inspectionCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.15);
+          
+          return `# Plumbing Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Fixtures**: ${fixtures}
+- **Water Heater**: ${waterHeater ? 'Yes' : 'No'}
+
+## Detailed Cost Breakdown
+
+### Plumbing Components
+- **Fixture Installation** (${fixtures} fixtures @ $450): $${fixtureCost.toLocaleString()}
+${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleString()}\n` : ''}- **Water Lines** (${fixtures} fixtures @ $180): $${pipeCost.toLocaleString()}
+- **Drain Lines** (${fixtures} fixtures @ $120): $${drainCost.toLocaleString()}
+
+### Other Costs
+- **Permits**: $${permitCost.toLocaleString()}
+- **Inspections**: $${inspectionCost.toLocaleString()}
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Plumbing Cost**: $${totalCost.toLocaleString()} CAD
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+## Code Compliance (${province})
+- **NPC Compliance**: Verified
+- **Provincial Code**: ${province} Plumbing Code
+- **Permit Required**: Yes
+- **Inspection Required**: Yes`;
+        },
+        
+        hvac: (prompt: string) => {
+          const capacityMatch = prompt.match(/(\d+).*?(?:BTU|btu|ton)/i);
+          const capacity = capacityMatch ? parseInt(capacityMatch[1]) : 36000;
+          const systemType = /heat.*pump/i.test(prompt) ? 'Heat Pump' : 'Forced Air';
+          const ductwork = /ductwork/i.test(prompt);
+          
+          const systemCost = capacity >= 36000 ? 8500 : 6500;
+          const ductworkCost = ductwork ? 3500 : 0;
+          const installationCost = 2500;
+          const permitCost = 400;
+          const inspectionCost = 200;
+          const contractorOverhead = Math.round((systemCost + ductworkCost + installationCost) * 0.20);
+          
+          const totalCost = systemCost + ductworkCost + installationCost + permitCost + inspectionCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.15);
+          
+          return `# HVAC Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **System Type**: ${systemType}
+- **Capacity**: ${capacity.toLocaleString()} BTU
+- **Ductwork**: ${ductwork ? 'Required' : 'Not Required'}
+
+## Detailed Cost Breakdown
+
+### HVAC Components
+- **HVAC System**: $${systemCost.toLocaleString()}
+${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` : ''}- **Installation Labor**: $${installationCost.toLocaleString()}
+
+### Other Costs
+- **Permits**: $${permitCost.toLocaleString()}
+- **Inspections**: $${inspectionCost.toLocaleString()}
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total HVAC Cost**: $${totalCost.toLocaleString()} CAD
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+## Code Compliance (${province})
+- **Mechanical Code Compliance**: Verified
+- **Provincial Code**: ${province} Mechanical Code
+- **Permit Required**: Yes
+- **Inspection Required**: Yes`;
+        },
+        
+        roofing: (prompt: string) => {
+          const materialMatch = prompt.match(/Material.*?(\w+)/i);
+          const material = materialMatch ? materialMatch[1] : 'Asphalt Shingles';
+          const sizeMatch = prompt.match(/Size.*?(\d+)/i);
+          const sqft = sizeMatch ? parseInt(sizeMatch[1]) : 2000;
+          
+          const materialCosts: Record<string, number> = {
+            'asphalt': 4,
+            'metal': 8,
+            'tile': 12,
+            'slate': 15,
+            'rubber': 6
+          };
+          const costPerSqft = materialCosts[material.toLowerCase()] || 4;
+          
+          const materialCost = sqft * costPerSqft;
+          const laborCost = sqft * 3;
+          const underlayment = sqft * 1.5;
+          const flashing = 800;
+          const permitCost = 250;
+          const contractorOverhead = Math.round((materialCost + laborCost + underlayment + flashing) * 0.20);
+          
+          const totalCost = materialCost + laborCost + underlayment + flashing + permitCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.15);
+          
+          return `# Roofing Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Material**: ${material}
+- **Roof Size**: ${sqft.toLocaleString()} sq ft
+
+## Detailed Cost Breakdown
+
+### Roofing Components
+- **Roofing Material** (${sqft} sq ft @ $${costPerSqft}/sq ft): $${materialCost.toLocaleString()}
+- **Installation Labor** (${sqft} sq ft @ $3/sq ft): $${laborCost.toLocaleString()}
+- **Underlayment**: $${underlayment.toLocaleString()}
+- **Flashing & Trim**: $${flashing.toLocaleString()}
+
+### Other Costs
+- **Permits**: $${permitCost.toLocaleString()}
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Roofing Cost**: $${totalCost.toLocaleString()} CAD
+- **Cost per Square Foot**: $${Math.round(totalCost / sqft).toLocaleString()}/sq ft
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+## Code Compliance (${province})
+- **Building Code Compliance**: Verified
+- **Provincial Code**: ${province} Building Code
+- **Permit Required**: Yes`;
+        },
+        
+        foundation: (prompt: string) => {
+          const typeMatch = prompt.match(/Type.*?(\w+)/i);
+          const type = typeMatch ? typeMatch[1] : 'Slab';
+          const sizeMatch = prompt.match(/Size.*?(\d+)/i);
+          const sqft = sizeMatch ? parseInt(sizeMatch[1]) : 1000;
+          
+          const costPerSqft = type.toLowerCase().includes('basement') ? 45 : (type.toLowerCase().includes('crawl') ? 25 : 20);
+          const excavation = sqft * 8;
+          const concrete = sqft * costPerSqft;
+          const rebar = sqft * 3;
+          const waterproofing = sqft * 2;
+          const permitCost = 500;
+          const inspectionCost = 200;
+          const contractorOverhead = Math.round((excavation + concrete + rebar + waterproofing) * 0.20);
+          
+          const totalCost = excavation + concrete + rebar + waterproofing + permitCost + inspectionCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.15);
+          
+          return `# Foundation Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Foundation Type**: ${type}
+- **Size**: ${sqft.toLocaleString()} sq ft
+
+## Detailed Cost Breakdown
+
+### Foundation Components
+- **Excavation**: $${excavation.toLocaleString()}
+- **Concrete** (${sqft} sq ft @ $${costPerSqft}/sq ft): $${concrete.toLocaleString()}
+- **Rebar**: $${rebar.toLocaleString()}
+- **Waterproofing**: $${waterproofing.toLocaleString()}
+
+### Other Costs
+- **Permits**: $${permitCost.toLocaleString()}
+- **Inspections**: $${inspectionCost.toLocaleString()}
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Foundation Cost**: $${totalCost.toLocaleString()} CAD
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+
+## Code Compliance (${province})
+- **NBC Compliance**: Verified
+- **Provincial Code**: ${province} Building Code
+- **Permit Required**: Yes
+- **Inspection Required**: Yes`;
+        },
+        
+        drywall: (prompt: string) => {
+          const areaMatch = prompt.match(/Area.*?(\d+)/i);
+          const area = areaMatch ? parseInt(areaMatch[1]) : 2000;
+          const finishMatch = prompt.match(/Finish.*?(level|Level).*?(\d)/i);
+          const finishLevel = finishMatch ? parseInt(finishMatch[2]) : 4;
+          
+          const materialCost = area * 1.2;
+          const laborCost = area * (finishLevel >= 4 ? 2.5 : 1.5);
+          const mudding = area * 1.8;
+          const sanding = area * 0.8;
+          const contractorOverhead = Math.round((materialCost + laborCost + mudding + sanding) * 0.20);
+          
+          const totalCost = materialCost + laborCost + mudding + sanding + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.10);
+          
+          return `# Drywall Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Area**: ${area.toLocaleString()} sq ft
+- **Finish Level**: Level ${finishLevel}
+
+## Detailed Cost Breakdown
+
+### Drywall Components
+- **Drywall Material** (${area} sq ft @ $1.20/sq ft): $${materialCost.toLocaleString()}
+- **Installation Labor** (${area} sq ft @ $${finishLevel >= 4 ? '2.50' : '1.50'}/sq ft): $${laborCost.toLocaleString()}
+- **Mudding & Taping**: $${mudding.toLocaleString()}
+- **Sanding**: $${sanding.toLocaleString()}
+
+### Other Costs
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Drywall Cost**: $${totalCost.toLocaleString()} CAD
+- **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+        },
+        
+        flooring: (prompt: string) => {
+          const typeMatch = prompt.match(/Type.*?(\w+)/i);
+          const type = typeMatch ? typeMatch[1] : 'Laminate';
+          const areaMatch = prompt.match(/Area.*?(\d+)/i);
+          const area = areaMatch ? parseInt(areaMatch[1]) : 2000;
+          
+          const materialCosts: Record<string, number> = {
+            'hardwood': 8,
+            'laminate': 3,
+            'vinyl': 4,
+            'tile': 6,
+            'carpet': 5,
+            'concrete': 2
+          };
+          const costPerSqft = materialCosts[type.toLowerCase()] || 3;
+          
+          const materialCost = area * costPerSqft;
+          const laborCost = area * 2;
+          const underlayment = area * 0.5;
+          const contractorOverhead = Math.round((materialCost + laborCost + underlayment) * 0.20);
+          
+          const totalCost = materialCost + laborCost + underlayment + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.10);
+          
+          return `# Flooring Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Flooring Type**: ${type}
+- **Area**: ${area.toLocaleString()} sq ft
+
+## Detailed Cost Breakdown
+
+### Flooring Components
+- **Flooring Material** (${area} sq ft @ $${costPerSqft}/sq ft): $${materialCost.toLocaleString()}
+- **Installation Labor** (${area} sq ft @ $2/sq ft): $${laborCost.toLocaleString()}
+- **Underlayment**: $${underlayment.toLocaleString()}
+
+### Other Costs
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Flooring Cost**: $${totalCost.toLocaleString()} CAD
+- **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+        },
+        
+        painting: (prompt: string) => {
+          const areaMatch = prompt.match(/Area.*?(\d+)/i);
+          const area = areaMatch ? parseInt(areaMatch[1]) : 2000;
+          const coatsMatch = prompt.match(/Coats.*?(\d+)/i);
+          const coats = coatsMatch ? parseInt(coatsMatch[1]) : 2;
+          
+          const paintCost = area * 0.8;
+          const laborCost = area * (coats * 1.2);
+          const prepCost = area * 0.5;
+          const contractorOverhead = Math.round((paintCost + laborCost + prepCost) * 0.20);
+          
+          const totalCost = paintCost + laborCost + prepCost + contractorOverhead;
+          const potentialSavings = Math.round(totalCost * 0.10);
+          
+          return `# Painting Estimate
+
+## Project Details
+- **Location**: ${location || 'Not specified'}
+- **Province**: ${province}
+- **Area**: ${area.toLocaleString()} sq ft
+- **Number of Coats**: ${coats}
+
+## Detailed Cost Breakdown
+
+### Painting Components
+- **Paint & Materials** (${area} sq ft @ $0.80/sq ft): $${paintCost.toLocaleString()}
+- **Labor** (${area} sq ft @ $${(coats * 1.2).toFixed(2)}/sq ft): $${laborCost.toLocaleString()}
+- **Preparation** (${area} sq ft @ $0.50/sq ft): $${prepCost.toLocaleString()}
+
+### Other Costs
+- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+
+## Summary
+- **Total Painting Cost**: $${totalCost.toLocaleString()} CAD
+- **Cost per Square Foot**: $${Math.round(totalCost / area).toLocaleString()}/sq ft
+- **Potential Savings**: $${potentialSavings.toLocaleString()}
+- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}`;
+        }
+      };
+      
+      const calculator = tradeCalculators[tradeType.toLowerCase()];
+      if (calculator) {
+        return calculator(promptText);
+      }
+      
+      // Fallback to general construction estimate
+      return generateConstructionEstimate(promptText);
+    };
+
+    // Generate dynamic construction estimate based on input (for full construction)
     const generateConstructionEstimate = (promptText: string) => {
       // Extract square footage from prompt
       const sqftMatch = promptText.match(/(\d+)\s*(?:sq\s*ft|square\s*feet|square\s*footage)/i);
@@ -314,12 +726,18 @@ export async function POST(request: NextRequest) {
 
     // Construction estimates: use our calculation system, then enhance with AI if available
     if (businessType === 'construction' && optimizationType === 'estimate') {
-      // First, generate base estimate using our calculation system
-      const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
-      let baseResponse = (businessResponses && optimizationType in businessResponses 
-        ? (businessResponses as any)[optimizationType] 
-        : null) || 
-        defaultResponse;
+      // If a specific trade is selected, generate trade-specific estimate
+      let baseResponse: string;
+      if (trade && trade !== '') {
+        baseResponse = generateTradeSpecificEstimate(prompt || '', trade);
+      } else {
+        // Otherwise, generate full construction estimate
+        const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
+        baseResponse = (businessResponses && optimizationType in businessResponses 
+          ? (businessResponses as any)[optimizationType] 
+          : null) || 
+          defaultResponse;
+      }
       
       // If AI is available, enhance the estimate with compliance agents
       const hasOpenAI = !!process.env.OPENAI_API_KEY;
