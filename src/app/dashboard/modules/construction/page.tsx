@@ -648,10 +648,10 @@ function ConstructionPageContent() {
         body: JSON.stringify({
           prompt: `Trade-specific construction estimate:
 Selected Trade: ${selectedTrade}
-Project Name: ${basicInfo.projectName || 'Unnamed Project'}
-Project Type: ${basicInfo.projectType}
-Location: ${basicInfo.location}
-Square Footage: ${basicInfo.squareFootage} sq ft
+Project Name: ${basicInfo.projectName || formData.projectName || 'Unnamed Project'}
+Project Type: ${basicInfo.projectType || formData.projectType}
+Location: ${basicInfo.location || formData.location}
+Square Footage: ${basicInfo.squareFootage || formData.squareFootage} sq ft
 
 Conversation Details:
 ${conversationText}
@@ -992,60 +992,9 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </div>
               )}
 
-              {/* Old Form Fields - Hidden in conversation mode */}
+              {/* Trade-Specific Questions - Only show when not in conversation mode */}
               {!conversationMode && (
                 <>
-              {/* General Project Info */}
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold mb-3">General Project Information</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Project Name</label>
-                    <Input
-                      placeholder="Smith Family Home"
-                      value={formData.projectName}
-                      onChange={(e) => setFormData({...formData, projectName: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Project Type *</label>
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.projectType}
-                      onChange={(e) => setFormData({...formData, projectType: e.target.value})}
-                      required
-                    >
-                      <option value="">Select project type...</option>
-                      <option value="garage">Garage</option>
-                      <option value="house">House / Residential Home</option>
-                      <option value="commercial">Commercial Building</option>
-                      <option value="addition">Addition / Extension</option>
-                      <option value="renovation">Renovation / Remodel</option>
-                      <option value="repair">Repair / Maintenance</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Square Footage</label>
-                      <Input
-                        placeholder="2000"
-                        type="number"
-                        value={formData.squareFootage}
-                        onChange={(e) => setFormData({...formData, squareFootage: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Location *</label>
-                      <Input
-                        placeholder="St. John's, NL"
-                        value={formData.location}
-                        onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Trade-Specific Questions */}
               {selectedTrade && (
                 <div className="border-t pt-4">
