@@ -568,7 +568,8 @@ function ConstructionPageContent() {
       projectName: formData.projectName,
       projectType: formData.projectType,
       location: formData.location,
-      squareFootage: formData.squareFootage
+      squareFootage: formData.squareFootage,
+      province: formData.province
     });
     
     // Validate inputs
@@ -576,7 +577,8 @@ function ConstructionPageContent() {
       projectType: formData.projectType,
       location: formData.location,
       squareFootage: formData.squareFootage,
-      trade: selectedTrade
+      trade: selectedTrade,
+      province: formData.province
     });
     
     if (!validation.valid) {
@@ -660,6 +662,7 @@ Selected Trade: ${selectedTrade}
 Project Name: ${basicInfo.projectName || formData.projectName || 'Unnamed Project'}
 Project Type: ${basicInfo.projectType || formData.projectType}
 Location: ${basicInfo.location || formData.location}
+Province: ${basicInfo.province || formData.province}
 Square Footage: ${basicInfo.squareFootage || formData.squareFootage} sq ft
 
 Conversation Details:
@@ -754,6 +757,7 @@ Selected Trade: ${selectedTrade}
 Project Name: ${formData.projectName || 'Unnamed Project'}
 Project Type: ${formData.projectType || 'Not specified'} ${formData.projectType === 'garage' ? '(This is a GARAGE build, not a house. Adjust questions and pricing accordingly.)' : ''}
 Location: ${formData.location || 'Not specified'}
+Province: ${formData.province || 'Not specified'}
 Square Footage: ${formData.squareFootage || 'N/A'} sq ft
 ${getTradeSpecificPrompt(selectedTrade, formData)}
 Existing Conditions: ${formData.existingConditions || 'New construction'}
@@ -974,7 +978,7 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                     </div>
                     <Button 
                       onClick={startConversation}
-                      disabled={!formData.projectType || !formData.location || !formData.squareFootage || !selectedTrade || !hasAccess}
+                      disabled={!formData.projectType || !formData.location || !formData.squareFootage || !formData.province || !selectedTrade || !hasAccess}
                       className="w-full bg-purple-600 hover:bg-purple-700"
                     >
                       💬 Start Question Flow for Accurate Quote
@@ -992,6 +996,7 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                     <div><strong>Type:</strong> {basicInfo.projectType || formData.projectType || 'Not specified'}</div>
                     <div><strong>Size:</strong> {basicInfo.squareFootage || formData.squareFootage || 'N/A'} sq ft</div>
                     <div><strong>Location:</strong> {basicInfo.location || formData.location || 'Not specified'}</div>
+                    <div><strong>Province:</strong> {basicInfo.province || formData.province || 'Not specified'}</div>
                   </div>
                 </div>
               )}
@@ -1134,7 +1139,7 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
               {!conversationMode && (
                 <Button 
                   onClick={generateEstimate} 
-                  disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !hasAccess}
+                  disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !formData.province || !hasAccess}
                   className="w-full"
                 >
                   {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
