@@ -38,6 +38,77 @@ const structureOptions = [
   { value: "industrial", label: "Industrial / Warehouse" },
 ];
 
+const scenarioTemplates = [
+  {
+    id: "two-bay-ev",
+    name: "EV-ready two-bay",
+    badge: "Popular",
+    description: "28×24' heated garage, EV charger, compressor circuit, premium finish.",
+    metrics: "150A service · 62 labour hrs · $124k target",
+    defaults: {
+      projectName: "North Shore EV Garage",
+      structureType: "residential",
+      length: "28",
+      width: "24",
+      bays: "2",
+      floors: "1",
+      squareFootage: "672",
+      electricalScope: "heavy-duty",
+      finishLevel: "heated",
+      specialRequirements: "50A EV charger, 30A welder circuit, radiant slab rough-in.",
+      location: "North Vancouver, BC",
+    },
+  },
+  {
+    id: "deluxe-carriage",
+    name: "Carriage house + loft",
+    badge: "New",
+    description: "36×28' carriage house with loft suite, panel upgrade, luxury finish.",
+    metrics: "200A service · 94 labour hrs · $212k target",
+    defaults: {
+      projectName: "Carriage Loft Retreat",
+      structureType: "residential",
+      length: "36",
+      width: "28",
+      bays: "3",
+      floors: "2",
+      squareFootage: "1008",
+      bedrooms: "1",
+      bathrooms: "1",
+      electricalScope: "panel-upgrade",
+      finishLevel: "heated",
+      specialRequirements: "Loft suite rough-ins, mini-split heat, glass doors.",
+      location: "Victoria, BC",
+    },
+  },
+  {
+    id: "pro-workshop",
+    name: "Pro workshop shell",
+    badge: "Efficiency",
+    description: "40×30' commercial workshop shell, engineered slab, shell finish.",
+    metrics: "125A service · 78 labour hrs · $186k target",
+    defaults: {
+      projectName: "Precision Fabrication Bay",
+      structureType: "commercial",
+      length: "40",
+      width: "30",
+      bays: "3",
+      floors: "1",
+      squareFootage: "1200",
+      electricalScope: "heavy-duty",
+      finishLevel: "shell",
+      specialRequirements: "Engineered slab for lifts, 3-phase prep, 14' doors.",
+      location: "Calgary, AB",
+    },
+  },
+];
+
+const wizardSteps = [
+  { id: "01", title: "Project basics", fields: ["projectName", "structureType", "location"] },
+  { id: "02", title: "Dimensions", fields: ["length", "width", "squareFootage", "bays"] },
+  { id: "03", title: "Systems & finish", fields: ["electricalScope", "finishLevel", "specialRequirements"] },
+];
+
 interface ConstructionMetrics {
   projectCost?: number;
   savings?: number;
@@ -107,6 +178,7 @@ export default function ConstructionPage() {
     "Price plugs/switches for a finished workshop",
   ]);
   const [agentLoading, setAgentLoading] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const labourDetails = labourCodes.find((code) => code.code === formData.labourCode);
 
   const generateEstimate = async () => {
@@ -276,32 +348,112 @@ export default function ConstructionPage() {
     });
   };
 
+  const handleTemplateApply = (templateId: string) => {
+    const template = scenarioTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+
+    setFormData((previous) => ({
+      ...previous,
+      ...template.defaults,
+    }));
+    setSelectedTemplateId(templateId);
+    setResult("");
+    setMetrics({});
+    setAgentMessages((previous) => [
+      ...previous,
+      {
+        id: createLocalId(),
+        role: "assistant",
+        content: `Loaded the ${template.name} template. Adjust any detail and click Generate to refresh labour, service, and component pricing.`,
+      },
+    ]);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-              <Button variant="outline" type="button" onClick={() => router.push("/dashboard")}>
-              ← Back to Dashboard
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-blue-500 flex items-center justify-center">
-                <span className="text-white">🏗️</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Construction Estimator</h1>
-                <p className="text-sm text-gray-600">AI-powered project estimation</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-slate-950 text-white">
+      <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur">
+        <div className="container mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="border-white/30 text-white hover:bg-white/10"
+          >
+            ← Back to dashboard
+          </Button>
+          <div className="text-right">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Estimator</p>
+            <p className="text-lg font-semibold">Construction · Garage / workshop</p>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-8">
+      <section className="border-b border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="container mx-auto max-w-6xl px-4 py-10">
+          <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Guided workflow</p>
+              <h1 className="text-2xl font-semibold">Tell the agent what you&apos;re building</h1>
+              <p className="text-sm text-white/70">
+                Complete each step or let the BizOptimize Agent fill the blanks. Templates on the right pre-populate dimensions,
+                electrical scope, and labour assumptions.
+              </p>
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {wizardSteps.map((step, index) => {
+                  const complete = isStepComplete(step.fields);
+                  const isCurrent = index === activeStepIndex;
+                  return (
+                    <div
+                      key={step.id}
+                      className={`rounded-2xl border border-white/10 p-4 ${
+                        complete ? "bg-emerald-500/10" : isCurrent ? "bg-white/10" : "bg-white/5"
+                      }`}
+                    >
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/60">{step.id}</p>
+                      <p className="text-lg font-semibold text-white">{step.title}</p>
+                      <p className="text-xs text-white/70">
+                        {complete ? "✅ Complete" : isCurrent ? "In progress" : "Needs details"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Scenario templates</p>
+              <h2 className="text-xl font-semibold">One-click presets</h2>
+              <div className="mt-4 space-y-3">
+                {scenarioTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => handleTemplateApply(template.id)}
+                    className={`w-full rounded-2xl border border-white/15 px-4 py-3 text-left transition ${
+                      selectedTemplateId === template.id ? "bg-white/20" : "bg-white/5 hover:bg-white/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm uppercase tracking-wide text-white/60">{template.badge}</p>
+                        <p className="text-lg font-semibold text-white">{template.name}</p>
+                      </div>
+                      <span>→</span>
+                    </div>
+                    <p className="text-sm text-white/70">{template.description}</p>
+                    <p className="text-xs text-white/50">{template.metrics}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="container mx-auto max-w-6xl px-4 pb-12">
+        <div className="-mt-10 grid grid-cols-1 gap-8 rounded-3xl bg-white p-6 text-slate-900 shadow-soft xl:grid-cols-[2fr_1fr]">
           <div className="space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
               {/* Input Form */}
               <Card>
                 <CardHeader>

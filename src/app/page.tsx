@@ -1,304 +1,360 @@
 import Link from "next/link";
 
+const heroStats = [
+  { label: "Avg. ROI", value: "340%", trend: "+23% vs last quarter" },
+  { label: "Cost savings orchestrated", value: "$72M", trend: "Across 500+ deployments" },
+  { label: "Playbooks shipped", value: "1,200+", trend: "Construction • Logistics • F&B" },
+];
+
+const featureHighlights = [
+  {
+    title: "Multi-agent intelligence",
+    description:
+      "Cost planner, electrical engineer, and labour scheduler agents combine to produce a holistic, client-ready narrative.",
+    icon: "🧠",
+  },
+  {
+    title: "Guided ops workspace",
+    description:
+      "A modern dashboard with scenario templates, recent AI runs, and proactive nudges that keep teams aligned.",
+    icon: "🎯",
+  },
+  {
+    title: "Stunning exports",
+    description:
+      "One-click handoffs generate branded decks with assumptions, savings, and visualized timelines that wow stakeholders.",
+    icon: "✨",
+  },
+];
+
+const workflowSteps = [
+  {
+    id: "01",
+    title: "Answer with natural language",
+    body: "Describe the site, constraints, or goals. BizOptimize Agent asks clarifying questions and fills the wizard for you.",
+  },
+  {
+    id: "02",
+    title: "Blend modules & agents",
+    body: "Activate a construction estimator, trucking optimizer, or restaurant planner, then layer specialized AI agents on top.",
+  },
+  {
+    id: "03",
+    title: "Share an executive-grade deck",
+    body: "Publish a multi-agent report, complete with savings, service-sizing, and component pricing in under 3 minutes.",
+  },
+];
+
+const industryUseCases = [
+  {
+    icon: "🏗️",
+    name: "Construction / Garages",
+    summary: "Scope garages, tenant improvements, and capital projects with auto labour + electrical assumptions.",
+    cta: "Launch estimator",
+    href: "/dashboard/modules/construction",
+  },
+  {
+    icon: "🚚",
+    name: "Trucking & logistics",
+    summary: "Model new lanes, consolidate contracts, and surface driver & fuel savings with fleet AI copilots.",
+    cta: "View fleet playbook",
+    href: "/dashboard/modules/trucking",
+  },
+  {
+    icon: "🍽️",
+    name: "Restaurant & retail",
+    summary: "Automate inventory, forecast demand, and generate multi-site profitability packs for franchisees.",
+    cta: "Explore retail module",
+    href: "/dashboard/modules/restaurant",
+  },
+];
+
+const testimonials = [
+  {
+    quote:
+      "We replaced a patchwork of spreadsheets with BizOptimize Pro. Clients now receive polished executive summaries minutes after a site walk.",
+    author: "Emily Zhao, VP of Operations · Northwind Build Group",
+  },
+  {
+    quote:
+      "The AI agents are a game changer. Our teams ask plain-English questions (\"Can we justify 200A service?\") and get defensible answers instantly.",
+    author: "Marcus Doyle, Director of Field Services · Aurora Energy",
+  },
+];
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4 max-w-7xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-green-600 flex items-center justify-center">
-                <span className="text-white text-xl">📊</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                  BizOptimize Pro
-                </h1>
-                <p className="text-xs text-gray-600">AI-Powered Business Optimization</p>
-              </div>
+    <div className="bg-background text-foreground">
+      <header className="relative z-10 border-b border-border bg-white/80 backdrop-blur">
+        <div className="container mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary text-2xl text-white shadow-glow">
+              ⚙️
             </div>
-            <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-gray-600 hover:text-gray-900">
-                Sign In
-              </button>
-              <Link 
-                href="/dashboard"
-                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:opacity-90"
-              >
-                Start Free Trial
-              </Link>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">AI OPS</p>
+              <p className="text-lg font-semibold">BizOptimize Pro</p>
             </div>
+          </div>
+          <div className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
+            <Link className="hover:text-foreground" href="/dashboard">
+              Product
+            </Link>
+            <Link className="hover:text-foreground" href="/dashboard/modules/construction">
+              Modules
+            </Link>
+            <Link className="hover:text-foreground" href="#stories">
+              Customer stories
+            </Link>
+            <Link className="hover:text-foreground" href="#contact">
+              Contact
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="hidden rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted md:block"
+            >
+              View demo
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-brand-primary/90 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-primary/25 hover:bg-brand-primary"
+            >
+              Launch workspace
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="container mx-auto text-center max-w-6xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-blue-50 text-blue-700 text-sm font-medium mb-6">
-            🚀 Trusted by 500+ businesses across Canada
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-blue-800 to-green-800 bg-clip-text text-transparent">
-            Optimize Your Business,
-            <br />
-            Maximize Your Profits
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            AI-powered optimization modules for construction, trucking, restaurants, manufacturing, retail, and services. 
-            <strong className="text-blue-600"> Only pay after we prove measurable savings.</strong>
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link 
-              href="/dashboard"
-              className="px-8 py-6 text-lg bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:opacity-90 inline-flex items-center justify-center"
-            >
-              Start Free Trial
-              <span className="ml-2">→</span>
-            </Link>
-            <button className="px-8 py-6 text-lg border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-              Watch Demo
-            </button>
-          </div>
+      <main>
+        <section className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+          <div className="absolute -right-20 top-16 h-96 w-96 rounded-full bg-brand-primary/30 blur-3xl" />
+          <div className="absolute -left-16 bottom-0 h-80 w-80 rounded-full bg-brand-secondary/30 blur-3xl" />
 
-          {/* Trust Indicators */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">$2.3M+</div>
-              <div className="text-sm text-gray-600">Savings Generated</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">500+</div>
-              <div className="text-sm text-gray-600">Active Companies</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">98%</div>
-              <div className="text-sm text-gray-600">Client Retention</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600">22%</div>
-              <div className="text-sm text-gray-600">Average Cost Reduction</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Business Modules Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Industry-Specific Optimization Modules</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose the modules that fit your business. Each powered by advanced AI to identify cost-saving opportunities.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: "🏗️",
-                name: "Construction Estimator",
-                description: "AI-powered project estimation with building code compliance",
-                savings: "Save 15-25% on project costs",
-                features: ["Automated material calculations", "Labor cost optimization", "Code compliance checks", "Project timeline forecasting"]
-              },
-              {
-                icon: "🚛",
-                name: "Fleet Optimizer",
-                description: "Route optimization and fuel efficiency tracking",
-                savings: "Reduce fuel costs by 18-30%",
-                features: ["Fuel consumption analysis", "Predictive maintenance", "Route optimization", "Driver performance tracking"]
-              },
-              {
-                icon: "🍽️",
-                name: "Restaurant Manager",
-                description: "Inventory optimization and waste reduction",
-                savings: "Cut food costs by 12-22%",
-                features: ["Smart inventory tracking", "Waste analysis", "Supplier optimization", "Menu profitability analysis"]
-              },
-              {
-                icon: "🏭",
-                name: "Manufacturing Optimizer",
-                description: "Production efficiency and quality control",
-                savings: "Boost efficiency by 20-35%",
-                features: ["Production line analysis", "Quality metrics tracking", "Equipment optimization", "Supply chain efficiency"]
-              },
-              {
-                icon: "🛍️",
-                name: "Retail Analytics",
-                description: "Sales forecasting and inventory management",
-                savings: "Increase margins by 10-18%",
-                features: ["Demand forecasting", "Inventory optimization", "Price optimization", "Customer behavior analysis"]
-              },
-              {
-                icon: "📅",
-                name: "Service Scheduler",
-                description: "Appointment and resource optimization",
-                savings: "Reduce downtime by 25-40%",
-                features: ["Smart scheduling", "Resource allocation", "Customer flow optimization", "Service efficiency tracking"]
-              }
-            ].map((module, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-xl transition-all duration-300">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="text-4xl">{module.icon}</div>
-                  <div>
-                    <h3 className="text-lg font-semibold">{module.name}</h3>
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
-                      {module.savings}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-gray-600 mb-4">{module.description}</p>
-                <ul className="space-y-2">
-                  {module.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="text-green-500">✓</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+          <div className="container relative mx-auto flex max-w-6xl flex-col gap-12 px-4 py-24 lg:flex-row lg:items-center">
+            <div className="max-w-2xl space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.3em] text-white/80">
+                <span className="text-sm">★</span> Trusted by builders, brokers, and operators
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Start with a free trial. We only charge after proving measurable cost savings to your business.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Starter",
-                price: 99,
-                description: "Perfect for small businesses",
-                features: ["1 optimization module", "Basic analytics", "Email support", "Up to 20 employees"],
-                badge: null
-              },
-              {
-                name: "Professional",
-                price: 299,
-                description: "Most popular for growing businesses",
-                features: ["3 optimization modules", "Advanced analytics", "Priority support", "Up to 100 employees", "Custom reports"],
-                badge: "Most Popular"
-              },
-              {
-                name: "Enterprise",
-                price: 599,
-                description: "For large organizations",
-                features: ["All 6 modules", "Real-time analytics", "Dedicated support", "Unlimited employees", "API access", "White-label option"],
-                badge: null
-              }
-            ].map((plan, index) => (
-              <div key={index} className={`relative border border-gray-200 rounded-lg p-8 ${plan.badge ? 'ring-2 ring-blue-500 scale-105' : ''} hover:shadow-xl transition-all`}>
-                {plan.badge && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
-                    {plan.badge}
-                  </div>
-                )}
-                <div className="text-center">
-                  <h3 className="text-2xl font-semibold">{plan.name}</h3>
-                  <div className="text-4xl font-bold text-blue-600 my-4">
-                    ${plan.price}<span className="text-lg text-gray-500">/mo</span>
-                  </div>
-                  <p className="text-gray-600 mb-6">{plan.description}</p>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm">
-                      <span className="text-green-500">✓</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+              <h1 className="text-4xl font-semibold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+                Wow clients with AI-crafted ops plans in minutes.
+              </h1>
+              <p className="text-lg text-white/70">
+                Combine domain-specific modules with conversational agents that prefill complex forms, size electrical loads, and produce executive-ready decks. No more spreadsheet sprawl—just confident recommendations that win deals.
+              </p>
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <Link
-                  href="/dashboard"
-                  className={`w-full block text-center py-3 px-6 rounded-lg transition-colors ${
-                    plan.badge ? 'bg-blue-600 text-white hover:bg-blue-700' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                  href="/dashboard/modules/construction"
+                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-soft transition hover:-translate-y-0.5"
                 >
-                  Start Free Trial
+                  Try the garage estimator
+                  <span className="ml-2 text-lg">→</span>
+                </Link>
+                <Link
+                  href="#stories"
+                  className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white/90 hover:bg-white/10"
+                >
+                  See customer stories
                 </Link>
               </div>
+            </div>
+
+            <div className="relative w-full max-w-xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+              <div className="flex items-center justify-between text-sm text-white/70">
+                <span>Live scenario: EV-ready garage</span>
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
+                  <span className="h-2 w-2 animate-ping rounded-full bg-emerald-400" />
+                  AI agent typing...
+                </span>
+              </div>
+              <div className="mt-6 space-y-4 text-sm">
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-white/50">Assistant</p>
+                  <p className="text-white/90">
+                    “For a 2-bay, 28×24’ garage with EV charging, I sized a 150A service, 12 dedicated circuits, and 68 receptacles. Estimated labour: 62 hrs · $4.9k. Ready for export?”
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-white/50">Multi-agent output</p>
+                  <ul className="space-y-2 text-white/85">
+                    <li>• Cost planner → $118k total, $27k savings.</li>
+                    <li>• Electrical engineer → 200A recommended, load @ 68A.</li>
+                    <li>• Labour scheduler → crew 6075-INT, 4-person sprint in 10 days.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="container mx-auto max-w-6xl px-4 pb-16">
+            <div className="grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-white/80 shadow-soft sm:grid-cols-3">
+              {heroStats.map((stat) => (
+                <div key={stat.label} className="space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-white/50">{stat.label}</p>
+                  <p className="text-3xl font-semibold text-white">{stat.value}</p>
+                  <p className="text-white/60">{stat.trend}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-border bg-white py-20">
+          <div className="container mx-auto grid max-w-6xl gap-8 px-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">Why BizOptimize</p>
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                An AI control room for ops, finance, and field teams.
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                We combine deterministic playbooks with natural-language copilots. That means your estimators, dispatchers, and analysts can ask the platform anything, get audited numbers back, and move straight to client wow moments.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {featureHighlights.map((feature) => (
+                  <div key={feature.title} className="rounded-2xl border border-border p-5 shadow-soft">
+                    <div className="mb-3 text-2xl">{feature.icon}</div>
+                    <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-3xl border border-border bg-gradient-to-b from-white to-muted p-6 shadow-soft">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">Workflow</p>
+              <h3 className="mt-2 text-2xl font-semibold">How teams use BizOptimize</h3>
+              <div className="mt-6 space-y-5">
+                {workflowSteps.map((step) => (
+                  <div key={step.id} className="flex gap-4">
+                    <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-sm font-semibold text-brand-primary">
+                      {step.id}
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold">{step.title}</h4>
+                      <p className="text-sm text-muted-foreground">{step.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-50 py-20">
+          <div className="container mx-auto max-w-6xl px-4">
+            <div className="mb-12 text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">Use cases</p>
+              <h2 className="mt-3 text-3xl font-semibold text-foreground sm:text-4xl">
+                Tailored modules with agent presets
+              </h2>
+              <p className="mt-3 text-lg text-muted-foreground">
+                Launch prewired playbooks for each vertical, complete with scenario templates and recommended AI copilots.
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {industryUseCases.map((useCase) => (
+                <div key={useCase.name} className="flex flex-col rounded-3xl border border-border bg-white p-6 shadow-soft">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-2xl">
+                    {useCase.icon}
+                  </div>
+                  <h3 className="mt-4 text-xl font-semibold">{useCase.name}</h3>
+                  <p className="mt-2 flex-1 text-sm text-muted-foreground">{useCase.summary}</p>
+                  <Link
+                    href={useCase.href}
+                    className="mt-6 inline-flex items-center text-sm font-semibold text-brand-primary hover:underline"
+                  >
+                    {useCase.cta}
+                    <span className="ml-1">→</span>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="stories" className="border-b border-border bg-white py-20">
+          <div className="container mx-auto grid max-w-5xl gap-8 px-4 md:grid-cols-2">
+            {testimonials.map((story) => (
+              <div key={story.author} className="rounded-3xl border border-border bg-muted/40 p-6 shadow-soft">
+                <p className="text-lg italic text-foreground">“{story.quote}”</p>
+                <p className="mt-4 text-sm font-semibold text-muted-foreground">{story.author}</p>
+              </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Demo Section */}
-      <section className="py-20 bg-blue-600 text-white">
-        <div className="container mx-auto px-4 text-center max-w-4xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to See Results?
-          </h2>
-          <p className="text-xl mb-8 text-blue-100">
-            Join hundreds of Canadian businesses already saving money with AI-powered optimization.
-          </p>
-          <Link 
-            href="/dashboard"
-            className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-gray-50"
-          >
-            Try Dashboard Demo
-            <span className="ml-2">→</span>
-          </Link>
-        </div>
-      </section>
+        <section className="bg-gradient-to-r from-brand-primary to-brand-secondary py-16 text-white">
+          <div className="container mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-white/70">Ready when you are</p>
+            <h2 className="text-3xl font-semibold sm:text-4xl">Wow your next client meeting</h2>
+            <p className="text-base text-white/80">
+              Spin up BizOptimize Pro, apply a garage or logistics template, and let the agent craft a shareable deck in minutes.
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Link
+                href="/dashboard"
+                className="rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-soft hover:-translate-y-0.5"
+              >
+                Open the workspace
+              </Link>
+              <Link
+                href="/dashboard/modules/construction"
+                className="rounded-full border border-white/40 px-6 py-3 text-base font-semibold text-white hover:bg-white/10"
+              >
+                Preview the estimator
+              </Link>
+            </div>
+          </div>
+        </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <footer id="contact" className="bg-slate-950 py-16 text-white">
+          <div className="container mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-4">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center">
-                  <span className="text-white">📊</span>
-                </div>
-                <h3 className="text-xl font-bold">BizOptimize Pro</h3>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl">⚙️</div>
+                <p className="text-lg font-semibold">BizOptimize Pro</p>
               </div>
-              <p className="text-gray-400 text-sm">
-                AI-powered business optimization for Canadian companies. Reduce costs, increase profits.
+              <p className="mt-3 text-sm text-white/60">
+                AI copilots for operations, finance, and field teams. Built in Canada, deployed worldwide.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Business Modules</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>Construction Estimator</li>
-                <li>Fleet Optimizer</li>
-                <li>Restaurant Manager</li>
-                <li>Manufacturing Optimizer</li>
-                <li>Retail Analytics</li>
-                <li>Service Scheduler</li>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">Product</p>
+              <ul className="mt-3 space-y-2 text-sm text-white/60">
+                <li>
+                  <Link href="/dashboard">Platform overview</Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/modules/construction">Construction estimator</Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/modules/trucking">Fleet optimizer</Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/modules/restaurant">Retail planner</Link>
+                </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>About Us</li>
-                <li>Case Studies</li>
-                <li>Careers</li>
-                <li>Contact</li>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">Resources</p>
+              <ul className="mt-3 space-y-2 text-sm text-white/60">
+                <li>Playbooks</li>
+                <li>Security</li>
+                <li>Status</li>
+                <li>APIs</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>Documentation</li>
-                <li>API Reference</li>
-                <li>Help Center</li>
-                <li>Status Page</li>
-              </ul>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">Connect</p>
+              <p className="mt-3 text-sm text-white/60">enterprise@bizoptimize.pro</p>
+              <p className="text-sm text-white/60">+1 (604) 555-0112</p>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-sm text-gray-400">
-            <p>© 2024 BizOptimize Pro. All rights reserved. Built for Canadian businesses.</p>
+          <div className="mt-8 border-t border-white/10 pt-6 text-center text-xs text-white/50">
+            © {new Date().getFullYear()} BizOptimize Pro. Built for teams who ship results.
           </div>
-        </div>
-      </footer>
+        </footer>
+      </main>
     </div>
   );
 }
