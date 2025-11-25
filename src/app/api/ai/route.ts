@@ -22,6 +22,7 @@ type AgentHistoryEntry = {
 };
 
 const mockResponses: Record<BusinessType, Partial<Record<OptimizationType, string>>> = {
+  construction: {},
   trucking: {
     fleet: `# Fleet Optimization Analysis
 
@@ -452,9 +453,12 @@ function detectMissingFields(formData: MetadataRecord) {
   const missing: string[] = [];
   const suggestions: string[] = [];
 
-  if (!formData.squareFootage) {
+  const hasArea =
+    parseNumberMetadata(formData.squareFootage) ||
+    (parseNumberMetadata(formData.length) && parseNumberMetadata(formData.width));
+  if (!hasArea) {
     missing.push("square footage");
-    suggestions.push("Set the square footage to 2500 sq ft");
+    suggestions.push("Set the square footage or enter length × width");
   }
 
   if (!formData.location) {
@@ -568,6 +572,11 @@ function buildConstructionTemplate(metadata: MetadataRecord) {
   const squareFootage = parseNumberMetadata(metadata.squareFootage);
   const structureType = metadata.structureType ?? "residential";
   const floors = parseNumberMetadata(metadata.floors) ?? 1;
+  const bays = parseNumberMetadata(metadata.bays) ?? 1;
+  const finishLevel = metadata.finishLevel ?? "shell";
+  const electricalScope = metadata.electricalScope ?? "standard";
+  const specialRequirements = metadata.specialRequirements;
+
   const totalCost =
     parseNumberMetadata(metadata.estimatedBudget) ??
     (squareFootage ? squareFootage * 190 : 250000);
@@ -592,7 +601,11 @@ function buildConstructionTemplate(metadata: MetadataRecord) {
 - **Structure Type**: ${structureType}
 - **Area**: ${squareFootage ? `${squareFootage.toLocaleString()} sq ft` : "N/A"}
 - **Floors**: ${floors}
+- **Bays**: ${bays}
+- **Finish Level**: ${finishLevel}
+- **Electrical Scope**: ${electricalScope}
 - **Service Recommendation**: ${serviceMain} A${serviceLoad ? ` (calculated load ~${serviceLoad} A)` : ""}
+${specialRequirements ? `- **Special Requirements**: ${specialRequirements}` : ""}
 
 ## Project Cost Breakdown
 - **Total Project Cost**: $${totalCost.toLocaleString()}
