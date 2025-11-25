@@ -1,9 +1,27 @@
-# BizOptimize Pro - AI-Powered Business Optimization SaaS Platform
+# BizOptimize Pro · AI Ops Platform
 
-![BizOptimize Pro](https://placehold.co/1200x400?text=BizOptimize+Pro+-+AI+Business+Optimization+Platform)
+<p align="center">
+  <img src="https://placehold.co/1400x450/091836/12f7d6?text=BizOptimize+Pro+AI+Platform" alt="BizOptimize Pro">
+</p>
+
+> **AI copilots for cost reduction.** BizOptimize Pro pairs industry-specific modules with conversational agents so teams can generate professional-grade estimates, surface savings, and share client-ready reports in minutes.
+
+---
+
+## 🎨 Product Snapshot
+
+| Feature | Highlights |
+| --- | --- |
+| Guided dashboard | Branded hero with live savings stats, module quick-launch buttons, and recent AI activity |
+| Conversational estimator | Step-by-step wizard plus BizOptimize Agent that infers missing data, fills the form, and explains every assumption |
+| Multi-agent insights | Cost Planner, Electrical Engineer, and Labour Scheduler cards that roll into a polished export/PDF |
+| Scenario templates | One-click presets (garages, restaurants, trucking lanes) that auto-populate data and recommended agents |
+
+---
 
 ## 🚀 **Live Demo**
-**Access the platform:** [Coming Soon - GitHub Pages Deployment]
+- **Public preview**: _Coming soon – Vercel-hosted staging environment_
+- **Screenshots / video**: [Product walk-through (Figma/loom placeholder)](#)
 
 ---
 
