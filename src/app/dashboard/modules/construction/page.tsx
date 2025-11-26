@@ -181,6 +181,7 @@ export default function ConstructionPage() {
   const [agentLoading, setAgentLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const labourDetails = labourCodes.find((code) => code.code === formData.labourCode);
 
   useEffect(() => {
@@ -388,6 +389,30 @@ export default function ConstructionPage() {
   const handleCommandPaletteSubmit = async (command: string) => {
     await handleAgentSend(command, { autoApplyFields: true });
     setIsCommandPaletteOpen(false);
+  };
+
+  const handleCopySummary = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result);
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 2000);
+    } catch (copyError) {
+      console.error("Clipboard error:", copyError);
+    }
+  };
+
+  const handleDownloadSummary = () => {
+    if (!result) return;
+    const blob = new Blob([result], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${formData.projectName || "bizoptimize-estimate"}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const isStepComplete = (fields: string[]) =>
@@ -815,30 +840,54 @@ export default function ConstructionPage() {
                       </div>
                     </div>
                     {(metrics.wireLength || metrics.wireGauge) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="rounded-lg border border-gray-200 p-4">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-2">Electrical Rough-In Plan</h4>
-                          <ul className="text-sm text-gray-600 space-y-1">
-                            {metrics.wireLength && (
-                              <li>Wire allowance: {metrics.wireLength.toLocaleString()} ft</li>
-                            )}
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 p-4">
+                          <h4 className="mb-2 text-sm font-semibold text-slate-700">Electrical Rough-In Plan</h4>
+                          <ul className="space-y-1 text-sm text-slate-600">
+                            {metrics.wireLength && <li>Wire allowance: {metrics.wireLength.toLocaleString()} ft</li>}
                             {metrics.wireGauge && <li>Recommended conductor: {metrics.wireGauge}</li>}
                             {metrics.circuits && <li>Baseline circuits: {metrics.circuits}</li>}
                           </ul>
                         </div>
-                        <div className="rounded-lg border border-gray-200 p-4">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-2">AI Provider</h4>
-                          <p className="text-sm text-gray-600">
+                        <div className="rounded-2xl border border-slate-200 p-4">
+                          <h4 className="mb-2 text-sm font-semibold text-slate-700">AI Provider</h4>
+                          <p className="text-sm text-slate-600">
                             Estimate validated by BizOptimize AI · Claude Sonnet 4 via OpenRouter with automated material inference.
                           </p>
                         </div>
                       </div>
                     )}
-                    <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-auto">
-                      <pre className="text-xs whitespace-pre-wrap">{result}</pre>
+                    <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Executive draft</p>
+                          <h4 className="text-xl font-semibold text-slate-900">Client-ready narrative</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCopySummary}
+                            className="border-slate-200 text-slate-700 hover:bg-white"
+                          >
+                            {copiedSummary ? "Copied ✔" : "Copy summary"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDownloadSummary}
+                            className="border-slate-200 text-slate-700 hover:bg-white"
+                          >
+                            Download .txt
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto rounded-2xl border border-white/60 bg-white p-4 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+                        {result}
+                      </div>
                     </div>
-                    <Button variant="outline" className="w-full">
-                      📄 Export Estimate
+                    <Button variant="outline" className="w-full border-slate-300 text-slate-700">
+                      📄 Export deck (coming soon)
                     </Button>
                   </div>
                 ) : (
