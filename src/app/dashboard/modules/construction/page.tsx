@@ -11,6 +11,7 @@ import { requestOptimization } from "@/lib/ai-client";
 import { sendAgentMessage } from "@/lib/agent-client";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/numbers";
+import { trackEvent } from "@/lib/telemetry";
 
 const labourCodes = [
   {
@@ -201,6 +202,17 @@ export default function ConstructionPage() {
     const squareFootage =
       toNumber(formData.squareFootage) ??
       deriveSquareFootage(toNumber(formData.length), toNumber(formData.width));
+    const missingFields: string[] = [];
+    if (!formData.projectName) missingFields.push("project name");
+    if (!formData.location) missingFields.push("location");
+    if (!squareFootage) missingFields.push("dimensions or square footage");
+    if (missingFields.length) {
+      const message = `Add ${missingFields.join(", ")} before generating an estimate.`;
+      setError(message);
+      setLoading(false);
+      trackEvent("construction_validation_failed", { missingFields });
+      return;
+    }
     const bedrooms = toNumber(formData.bedrooms);
     const bathrooms = toNumber(formData.bathrooms);
     const estimatedBudget = squareFootage ? squareFootage * 190 : undefined;
@@ -282,6 +294,11 @@ export default function ConstructionPage() {
         serviceAmps: servicePlan?.recommendedAmps,
         serviceLoad: servicePlan?.estimatedLoadAmps,
         serviceRationale: servicePlan?.rationale,
+      });
+      trackEvent("construction_estimate_generated", {
+        squareFootage,
+        labourCode: labourDetails?.code,
+        service: servicePlan?.recommendedAmps,
       });
     } catch (apiError) {
       console.error("Error:", apiError);
@@ -376,6 +393,7 @@ export default function ConstructionPage() {
     setSelectedTemplateId(templateId);
     setResult("");
     setMetrics({});
+    trackEvent("construction_template_applied", { templateId });
     setAgentMessages((previous) => [
       ...previous,
       {
@@ -387,6 +405,7 @@ export default function ConstructionPage() {
   };
 
   const handleCommandPaletteSubmit = async (command: string) => {
+    trackEvent("construction_palette_command", { command });
     await handleAgentSend(command, { autoApplyFields: true });
     setIsCommandPaletteOpen(false);
   };
@@ -397,6 +416,7 @@ export default function ConstructionPage() {
       await navigator.clipboard.writeText(result);
       setCopiedSummary(true);
       setTimeout(() => setCopiedSummary(false), 2000);
+      trackEvent("construction_summary_copied", { projectName: formData.projectName });
     } catch (copyError) {
       console.error("Clipboard error:", copyError);
     }
@@ -413,15 +433,27 @@ export default function ConstructionPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    trackEvent("construction_summary_downloaded", { projectName: formData.projectName });
   };
 
-  const handleExportDeck = () => {
+  const handleExportDeckPdf = () => {
     if (!result) return;
-    const deckContent = buildDeckDocument({
-      formData,
-      metrics,
-      result,
-    });
+    if (typeof window === "undefined") return;
+    const html = buildDeckHtml({ formData, metrics, result });
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
+    if (!printWindow) {
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    trackEvent("construction_deck_pdf_exported", { projectName: formData.projectName });
+  };
+
+  const handleDownloadDeckMarkdown = () => {
+    if (!result) return;
+    const deckContent = buildDeckMarkdown({ formData, metrics, result });
     const blob = new Blob([deckContent], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -431,6 +463,7 @@ export default function ConstructionPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    trackEvent("construction_deck_markdown_downloaded", { projectName: formData.projectName });
   };
 
   const isStepComplete = (fields: string[]) =>
@@ -904,14 +937,25 @@ export default function ConstructionPage() {
                         {result}
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={handleExportDeck}
-                      disabled={!result}
-                      className="w-full bg-slate-900 text-white hover:bg-slate-800"
-                    >
-                      📄 Export markdown deck
-                    </Button>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Button
+                        type="button"
+                        onClick={handleExportDeckPdf}
+                        disabled={!result}
+                        className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                      >
+                        📄 Export PDF deck
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDownloadDeckMarkdown}
+                        disabled={!result}
+                        className="w-full border-slate-300 text-slate-700"
+                      >
+                        ⬇️ Download markdown
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -1024,7 +1068,7 @@ interface DeckDocumentContext {
   result: string;
 }
 
-function buildDeckDocument({ formData, metrics, result }: DeckDocumentContext) {
+function buildDeckMarkdown({ formData, metrics, result }: DeckDocumentContext) {
   const lines = [
     `# BizOptimize Pro · ${formData.projectName || "Construction Estimate"}`,
     "",
@@ -1056,4 +1100,79 @@ function buildDeckDocument({ formData, metrics, result }: DeckDocumentContext) {
   ];
 
   return lines.join("\n");
+}
+
+function buildDeckHtml({ formData, metrics, result }: DeckDocumentContext) {
+  const markdown = buildDeckMarkdown({ formData, metrics, result }).replace(/\n/g, "<br />");
+  const branding = {
+    title: formData.projectName || "Construction Estimate",
+    subtitle: `${formData.structureType || "Structure"} · ${formData.location || "Location pending"}`,
+  };
+  return `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BizOptimize Pro Deck</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #0f172a;
+        margin: 0;
+        padding: 32px;
+      }
+      .frame {
+        max-width: 960px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 32px;
+        padding: 48px;
+        box-shadow: 0 25px 80px rgba(15, 23, 42, 0.25);
+      }
+      h1 {
+        font-size: 32px;
+        margin-bottom: 4px;
+        color: #0f172a;
+      }
+      h2 {
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: #475569;
+      }
+      .meta {
+        margin-bottom: 32px;
+        color: #475569;
+      }
+      .markdown {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #1e293b;
+      }
+      @media print {
+        body {
+          background: #ffffff;
+          padding: 0;
+        }
+        .frame {
+          box-shadow: none;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <h2>BizOptimize Pro</h2>
+      <h1>${branding.title}</h1>
+      <div class="meta">${branding.subtitle}</div>
+      <div class="markdown">${markdown}</div>
+    </div>
+  </body>
+</html>
+`;
 }
