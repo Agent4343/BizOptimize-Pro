@@ -449,7 +449,6 @@ export default function TruckingPage() {
           </Card>
         </div>
       </div>
-      </div>
       <CommandPalette
         open={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}

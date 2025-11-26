@@ -459,7 +459,6 @@ export default function RestaurantPage() {
           </Card>
         </div>
       </div>
-      </div>
       <CommandPalette
         open={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
