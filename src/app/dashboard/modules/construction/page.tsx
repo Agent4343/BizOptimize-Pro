@@ -11,6 +11,7 @@ import { requestOptimization } from "@/lib/ai-client";
 import { sendAgentMessage } from "@/lib/agent-client";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/numbers";
+import { useOnboarding } from "@/lib/onboarding-store";
 import { trackEvent } from "@/lib/telemetry";
 
 const labourCodes = [
@@ -183,6 +184,7 @@ export default function ConstructionPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const { state: onboardingState } = useOnboarding();
   const labourDetails = labourCodes.find((code) => code.code === formData.labourCode);
 
   useEffect(() => {
@@ -195,6 +197,19 @@ export default function ConstructionPage() {
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   }, []);
+
+  useEffect(() => {
+    if (
+      onboardingState.status === "completed" &&
+      onboardingState.companyName &&
+      !formData.projectName
+    ) {
+      setFormData((previous) => ({
+        ...previous,
+        projectName: `${onboardingState.companyName} Garage`,
+      }));
+    }
+  }, [onboardingState.status, onboardingState.companyName, formData.projectName]);
 
   const generateEstimate = async () => {
     setLoading(true);
@@ -615,6 +630,19 @@ export default function ConstructionPage() {
       </section>
 
       <div className="container mx-auto max-w-6xl px-4 pb-12">
+        {onboardingState.status !== "completed" ? (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-200">
+            <span>Finish onboarding from the dashboard to prefill project names, focus modules, and export decks automatically.</span>
+            <Button variant="outline" size="sm" className="border-white/30 text-white" onClick={() => router.push("/dashboard")}>
+              Finish onboarding
+            </Button>
+          </div>
+        ) : (
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            Using onboarding context for {onboardingState.companyName} · Focus module:{" "}
+            {onboardingState.focusModule || "construction"}.
+          </div>
+        )}
         <div className="-mt-10 grid grid-cols-1 gap-8 rounded-3xl bg-white p-6 text-slate-900 shadow-soft xl:grid-cols-[2fr_1fr]">
           <div className="space-y-8">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">

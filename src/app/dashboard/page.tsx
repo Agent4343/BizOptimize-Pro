@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/agent/CommandPalette";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { useOnboarding } from "@/lib/onboarding-store";
+import { trackEvent } from "@/lib/telemetry";
 
 const multiAgentInsights = [
   {
@@ -106,6 +109,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const { state: onboardingState, complete: completeOnboarding, start: startOnboarding } = useOnboarding();
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -125,6 +130,13 @@ export default function DashboardPage() {
 
   const handleCommandSubmit = async (command: string) => {
     const text = command.toLowerCase();
+    if (text.includes("onboarding")) {
+      setIsCommandPaletteOpen(false);
+      startOnboarding();
+      setIsOnboardingOpen(true);
+      trackEvent("dashboard_palette_command", { command: "open-onboarding" });
+      return;
+    }
     if (text.includes("construction") || text.includes("garage")) {
       navigateForCommand("/dashboard/modules/construction");
       return;
@@ -153,6 +165,7 @@ export default function DashboardPage() {
     "Jump to the fleet optimizer.",
     "Show me the restaurant module.",
     "Copy the ROI summary.",
+    "Launch onboarding wizard.",
   ];
 
   const quickActions = [
@@ -185,6 +198,27 @@ export default function DashboardPage() {
         setIsCommandPaletteOpen(false);
       },
     },
+    onboardingState.status !== "completed"
+      ? {
+          label: "Complete onboarding",
+          description: "Share company info once for all modules.",
+          icon: "🧭",
+          onSelect: () => {
+            startOnboarding();
+            setIsCommandPaletteOpen(false);
+            setIsOnboardingOpen(true);
+            trackEvent("dashboard_palette_quick_action", { action: "open-onboarding" });
+          },
+        }
+      : {
+          label: "View onboarding summary",
+          description: onboardingState.companyName || "Configured workspace",
+          icon: "✅",
+          onSelect: () => {
+            setIsCommandPaletteOpen(false);
+            setIsOnboardingOpen(true);
+          },
+        },
   ];
 
   return (
@@ -194,6 +228,12 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Command center</p>
             <h1 className="text-2xl font-semibold">BizOptimize Pro · Atlantic Construction</h1>
+            {onboardingState.status === "completed" && (
+              <p className="text-xs text-white/60">
+                Onboarding complete for {onboardingState.companyName || "Workspace"} · Focus:{" "}
+                {onboardingState.focusModule || "—"}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -216,6 +256,24 @@ export default function DashboardPage() {
 
       <main className="container mx-auto max-w-6xl px-4 py-10">
         <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+          {onboardingState.status !== "completed" && (
+            <Card className="border-white/10 bg-white/10 p-6 text-white lg:col-span-2">
+              <CardHeader className="space-y-2">
+                <CardTitle className="text-xl text-white">Finish onboarding</CardTitle>
+                <CardDescription className="text-white/70">
+                  Capture company info once so every module pre-fills exports and command palette intents.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-white/80">
+                  Answer 4 quick questions → unlock tailored templates for {onboardingState.focusModule || "construction / trucking / restaurant"}.
+                </p>
+                <Button className="bg-white text-slate-900 hover:bg-slate-200" onClick={() => setIsOnboardingOpen(true)}>
+                  Start onboarding
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             <CardHeader className="space-y-2">
@@ -362,6 +420,15 @@ export default function DashboardPage() {
         onSubmit={handleCommandSubmit}
         suggestions={paletteSuggestions}
         quickActions={quickActions}
+      />
+      <OnboardingWizard
+        open={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        initialState={onboardingState}
+        onComplete={(payload) => {
+          completeOnboarding(payload);
+          trackEvent("onboarding_completed", payload);
+        }}
       />
     </div>
   );

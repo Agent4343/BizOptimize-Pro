@@ -9,6 +9,7 @@ import { CommandPalette } from "@/components/agent/CommandPalette";
 import { requestOptimization } from "@/lib/ai-client";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/numbers";
+import { useOnboarding } from "@/lib/onboarding-store";
 import { trackEvent } from "@/lib/telemetry";
 
 interface RestaurantMetrics {
@@ -33,6 +34,7 @@ export default function RestaurantPage() {
   });
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const { state: onboardingState } = useOnboarding();
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -44,6 +46,15 @@ export default function RestaurantPage() {
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   }, []);
+
+  useEffect(() => {
+    if (onboardingState.status === "completed" && onboardingState.companyName && !formData.restaurantName) {
+      setFormData((previous) => ({
+        ...previous,
+        restaurantName: onboardingState.companyName,
+      }));
+    }
+  }, [onboardingState.status, onboardingState.companyName, formData.restaurantName]);
 
   const applyPreset = (preset: Partial<typeof formData>) => {
     setFormData((previous) => ({
@@ -291,6 +302,18 @@ export default function RestaurantPage() {
       </header>
 
       <div className="container mx-auto max-w-6xl px-4 py-8">
+        {onboardingState.status !== "completed" ? (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/5 p-4 text-sm text-white/80">
+            <span>Finish onboarding to prefill restaurant details and goals.</span>
+            <Button variant="outline" size="sm" className="border-white/40 text-white hover:bg-white/10" onClick={() => router.push("/dashboard")}>
+              Finish onboarding
+            </Button>
+          </div>
+        ) : (
+          <div className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+            Optimizing for {onboardingState.companyName} · Focus: {onboardingState.focusModule || "restaurant"}.
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Input Form */}
           <Card className="bg-white text-slate-900">
