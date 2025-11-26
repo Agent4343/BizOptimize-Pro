@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AgentSidebar, AgentChatMessage } from "@/components/agent/AgentSidebar";
+import { CommandPalette } from "@/components/agent/CommandPalette";
 import { requestOptimization } from "@/lib/ai-client";
 import { sendAgentMessage } from "@/lib/agent-client";
 import { formatCurrency } from "@/lib/format";
@@ -179,7 +180,19 @@ export default function ConstructionPage() {
   ]);
   const [agentLoading, setAgentLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const labourDetails = labourCodes.find((code) => code.code === formData.labourCode);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsCommandPaletteOpen((previous) => !previous);
+      }
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
 
   const generateEstimate = async () => {
     setLoading(true);
@@ -281,7 +294,7 @@ export default function ConstructionPage() {
     }
   };
 
-  const handleAgentSend = async (message: string) => {
+  const handleAgentSend = async (message: string, options?: { autoApplyFields?: boolean }) => {
     const trimmed = message.trim();
     if (!trimmed) return;
 
@@ -317,6 +330,9 @@ export default function ConstructionPage() {
         fields: response.fields,
       };
       setAgentMessages((previous) => [...previous, assistantMessage]);
+      if (options?.autoApplyFields && response.fields) {
+        applyAgentFields(response.fields);
+      }
     } catch (agentError) {
       const fallback: AgentChatMessage = {
         id: createLocalId(),
@@ -369,6 +385,67 @@ export default function ConstructionPage() {
     ]);
   };
 
+  const handleCommandPaletteSubmit = async (command: string) => {
+    await handleAgentSend(command, { autoApplyFields: true });
+    setIsCommandPaletteOpen(false);
+  };
+
+  const isStepComplete = (fields: string[]) =>
+    fields.every((field) => {
+      const value = formData[field as keyof ConstructionFormState];
+      return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    });
+
+  const incompleteIndex = wizardSteps.findIndex((step) => !isStepComplete(step.fields));
+  const activeStepIndex = incompleteIndex === -1 ? wizardSteps.length - 1 : incompleteIndex;
+
+  const paletteSuggestions = Array.from(
+    new Set([
+      "Load a template for a heated two-bay garage with EV charging.",
+      "What labour hours would a 40x30 workshop need?",
+      "Can you justify upgrading to 200 amp service?",
+      ...agentSuggestions,
+    ]),
+  );
+
+  const quickActions = [
+    {
+      label: "Load EV-ready garage",
+      description: "28×24, two bays, heavy-duty electrical preset.",
+      icon: "⚡",
+      onSelect: () => handleTemplateApply("two-bay-ev"),
+    },
+    {
+      label: "Carriage house + loft",
+      description: "36×28 footprint with panel upgrade assumptions.",
+      icon: "🏠",
+      onSelect: () => handleTemplateApply("deluxe-carriage"),
+    },
+    {
+      label: "Commercial workshop shell",
+      description: "40×30 shell, engineered slab + 3-phase prep.",
+      icon: "🏭",
+      onSelect: () => handleTemplateApply("pro-workshop"),
+    },
+    {
+      label: "Finish + heat interior",
+      description: "Switch finish level to heated workspace.",
+      icon: "🔥",
+      onSelect: () =>
+        setFormData((previous) => ({
+          ...previous,
+          finishLevel: "heated",
+        })),
+    },
+    {
+      label: "Ask agent for 200A sizing",
+      description: "Have BizOptimize auto-size and apply service fields.",
+      icon: "📡",
+      onSelect: () =>
+        handleCommandPaletteSubmit("Confirm if this project needs 200 amp service and update the form for it."),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur">
@@ -392,9 +469,20 @@ export default function ConstructionPage() {
         <div className="container mx-auto max-w-6xl px-4 py-10">
           <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Guided workflow</p>
-              <h1 className="text-2xl font-semibold">Tell the agent what you&apos;re building</h1>
-              <p className="text-sm text-white/70">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">Guided workflow</p>
+                  <h1 className="text-2xl font-semibold">Tell the agent what you&apos;re building</h1>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCommandPaletteOpen(true)}
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/10"
+                >
+                  Command palette · ⌘K
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-white/70">
                 Complete each step or let the BizOptimize Agent fill the blanks. Templates on the right pre-populate dimensions,
                 electrical scope, and labour assumptions.
               </p>
@@ -771,12 +859,20 @@ export default function ConstructionPage() {
               messages={agentMessages}
               suggestions={agentSuggestions}
               loading={agentLoading}
-              onSend={handleAgentSend}
+              onSend={(message) => handleAgentSend(message)}
               onApplyFields={applyAgentFields}
             />
           </div>
         </div>
       </div>
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSubmit={handleCommandPaletteSubmit}
+        loading={agentLoading}
+        suggestions={paletteSuggestions}
+        quickActions={quickActions}
+      />
     </div>
   );
 }
