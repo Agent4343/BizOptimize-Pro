@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CommandPalette } from "@/components/agent/CommandPalette";
 
 const multiAgentInsights = [
   {
@@ -102,6 +104,88 @@ const modules = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsCommandPaletteOpen((previous) => !previous);
+      }
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
+
+  const navigateForCommand = (route: string) => {
+    setIsCommandPaletteOpen(false);
+    router.push(route);
+  };
+
+  const handleCommandSubmit = async (command: string) => {
+    const text = command.toLowerCase();
+    if (text.includes("construction") || text.includes("garage")) {
+      navigateForCommand("/dashboard/modules/construction");
+      return;
+    }
+    if (text.includes("fleet") || text.includes("trucking")) {
+      navigateForCommand("/dashboard/modules/trucking");
+      return;
+    }
+    if (text.includes("restaurant") || text.includes("retail")) {
+      navigateForCommand("/dashboard/modules/restaurant");
+      return;
+    }
+    if (text.includes("copy") || text.includes("summary") || text.includes("roi")) {
+      await navigator.clipboard.writeText("Total savings $714,580 · ROI 340% · 6 active modules.");
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+      setIsCommandPaletteOpen(false);
+      return;
+    }
+    // default: focus on dashboard hero
+    setIsCommandPaletteOpen(false);
+  };
+
+  const paletteSuggestions = [
+    "Open the construction estimator.",
+    "Jump to the fleet optimizer.",
+    "Show me the restaurant module.",
+    "Copy the ROI summary.",
+  ];
+
+  const quickActions = [
+    {
+      label: "Launch construction estimator",
+      description: "Jump into the garage/workshop playbook.",
+      icon: "🏗️",
+      onSelect: () => navigateForCommand("/dashboard/modules/construction"),
+    },
+    {
+      label: "Open fleet optimizer",
+      description: "Review lane profitability and idle assets.",
+      icon: "🚚",
+      onSelect: () => navigateForCommand("/dashboard/modules/trucking"),
+    },
+    {
+      label: "Open restaurant manager",
+      description: "Triage spoilage + inventory across sites.",
+      icon: "🍽️",
+      onSelect: () => navigateForCommand("/dashboard/modules/restaurant"),
+    },
+    {
+      label: copyFeedback ? "ROI copied ✔" : "Copy ROI summary",
+      description: "Grab Total savings / ROI for an email.",
+      icon: "📋",
+      onSelect: async () => {
+        await navigator.clipboard.writeText("Total savings $714,580 · ROI 340% · 6 active modules.");
+        setCopyFeedback(true);
+        setTimeout(() => setCopyFeedback(false), 2000);
+        setIsCommandPaletteOpen(false);
+      },
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -112,6 +196,14 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-semibold">BizOptimize Pro · Atlantic Construction</h1>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 text-white hover:bg-white/10"
+              onClick={() => setIsCommandPaletteOpen(true)}
+            >
+              Command palette · ⌘K
+            </Button>
             <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
               Live support
             </Button>
@@ -264,6 +356,13 @@ export default function DashboardPage() {
           </Card>
         </section>
       </main>
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSubmit={handleCommandSubmit}
+        suggestions={paletteSuggestions}
+        quickActions={quickActions}
+      />
     </div>
   );
 }
