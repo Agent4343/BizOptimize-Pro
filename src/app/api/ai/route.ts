@@ -129,69 +129,125 @@ export async function POST(request: NextRequest) {
       const tradeCalculators: Record<string, (prompt: string) => string> = {
         electrical: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
-          
-          // Extract values with better regex patterns and validation
+
+          // Extract square footage for calculations
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
+          // Calculate expected electrical requirements based on sq ft and CEC guidelines
+          // Garage: simpler layout, perimeter outlets, basic lighting
+          // House: CEC requires outlets within 1.8m of any point, more circuits
+          const calculateExpectedElectrical = (sqft: number, isGarage: boolean) => {
+            if (isGarage) {
+              // Garage calculations:
+              // - Circuits: 1 lighting + 1 per 100 sq ft for outlets + 1-2 dedicated (door opener, heater, EV)
+              // - Outlets: perimeter spacing ~8ft apart, roughly 1 per 60 sq ft
+              // - Switches: 1-2 for main lighting zones
+              const baseCircuits = 2; // lighting + general
+              const additionalCircuits = Math.ceil(sqft / 150); // 1 per 150 sq ft
+              const dedicatedCircuits = sqft >= 400 ? 2 : 1; // EV prep, heater for larger garages
+
+              return {
+                circuits: Math.min(baseCircuits + additionalCircuits + dedicatedCircuits, 15),
+                outlets: Math.max(4, Math.min(Math.ceil(sqft / 60), 20)), // 1 per 60 sq ft, min 4, max 20
+                switches: Math.max(2, Math.min(Math.ceil(sqft / 200), 6)), // 1 per 200 sq ft, min 2
+                panel: sqft >= 800 ? 150 : 100 // Larger garages may need 150A
+              };
+            } else {
+              // House calculations (CEC compliance):
+              // - General circuits: 1 per 75 sq ft
+              // - Dedicated circuits: kitchen (2), laundry, bathroom, HVAC, etc.
+              // - Outlets: CEC requires within 1.8m of any wall point, roughly 1 per 35 sq ft
+              // - Switches: 1 per 80 sq ft (room-based zones)
+              const generalCircuits = Math.ceil(sqft / 75);
+              const dedicatedCircuits = 8; // kitchen x2, laundry, bathroom, HVAC, water heater, dryer, range
+
+              return {
+                circuits: Math.min(generalCircuits + dedicatedCircuits, 50),
+                outlets: Math.max(15, Math.min(Math.ceil(sqft / 35), 100)), // 1 per 35 sq ft
+                switches: Math.max(8, Math.min(Math.ceil(sqft / 80), 40)), // 1 per 80 sq ft
+                panel: sqft >= 2500 ? 200 : (sqft >= 1500 ? 150 : 100)
+              };
+            }
+          };
+
+          const expected = calculateExpectedElectrical(sqft, isGarage);
+
+          // Extract user-specified values with regex patterns
           const panelMatch = prompt.match(/(?:Panel|Main Panel).*?(\d+)\s*(?:amp|amps|A)/i);
           const circuitsMatch = prompt.match(/(?:Circuits|Number of Circuits).*?(\d+)/i);
-          // More specific outlet matching - avoid matching voltage (240V) or other numbers
           const outletsMatch = prompt.match(/(?:Outlets|Number of Outlets|Electrical Outlets).*?(\d+)(?!\s*(?:V|volt|amp|amps|A|sq|ft|feet))/i);
           const switchesMatch = prompt.match(/(?:Switches|Number of Switches|Light Switches).*?(\d+)/i);
-          
-          // Default values adjusted for garage vs house
-          let panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
-          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
-          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
-          let switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
-          
-          // Validation and sanity checks
-          if (panelSize < 60 || panelSize > 400) panelSize = isGarage ? 100 : 200;
-          if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
-          if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
-          if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
-          
-          // Additional sanity check: for garages, cap outlets at reasonable number based on size
-          // Typical: 1 outlet per 50-100 sq ft for garages
-          if (isGarage) {
-            const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
-            const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 600;
-            const maxReasonableOutlets = Math.ceil(sqft / 50); // 1 per 50 sq ft max
-            if (outlets > maxReasonableOutlets) {
-              outlets = Math.min(maxReasonableOutlets, 12); // Cap at 12 for garages
-            }
-          }
-          
-          // Electrical pricing (CAD) - adjusted for garage
+
+          // Use user values if provided, otherwise use calculated expected values
+          let panelSize = panelMatch ? parseInt(panelMatch[1]) : expected.panel;
+          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : expected.circuits;
+          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : expected.outlets;
+          let switches = switchesMatch ? parseInt(switchesMatch[1]) : expected.switches;
+
+          // Validation: ensure values are within reasonable bounds
+          if (panelSize < 60 || panelSize > 400) panelSize = expected.panel;
+          if (circuits < 1 || circuits > 100) circuits = expected.circuits;
+          if (outlets < 0 || outlets > 200) outlets = expected.outlets;
+          if (switches < 0 || switches > 100) switches = expected.switches;
+
+          // Electrical pricing (CAD) - garage vs house rates
+          // Garage work is typically simpler: shorter runs, less complexity
           const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
-          const circuitCost = circuits * 150;
-          const outletCost = outlets * 85;
+          // Circuit cost: $110/circuit for garages (simpler routing), $150 for houses
+          const circuitRate = isGarage ? 110 : 150;
+          const circuitCost = circuits * circuitRate;
+          // Outlet cost: $65/outlet for garages (surface mount common), $85 for houses
+          const outletRate = isGarage ? 65 : 85;
+          const outletCost = outlets * outletRate;
           const switchCost = switches * 65;
-          const wireCost = (circuits + outlets) * 25;
+          // Wire cost: garage uses shorter runs, less labor
+          const wireRate = isGarage ? 35 : 45;
+          const outletWireRate = isGarage ? 20 : 30;
+          const wireCost = (circuits * wireRate) + (outlets * outletWireRate);
           const permitCost = isGarage ? 250 : 350; // Lower permit cost for garages
           const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
-          const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
-          
-          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+          // Contractor overhead (20%) on all costs including permits/inspections
+          const subtotal = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost;
+          const contractorOverhead = Math.round(subtotal * 0.20);
+
+          let totalCost = subtotal + contractorOverhead;
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
+          // Potential savings: 5% is realistic for electrical (regulated trade with limited discount options)
+          const potentialSavings = Math.round(totalCost * 0.05);
           
+          // Check if user values differ significantly from expected
+          const userSpecified = circuitsMatch || outletsMatch || switchesMatch;
+          const circuitsDiff = circuits !== expected.circuits;
+          const outletsDiff = outlets !== expected.outlets;
+
           return `# Electrical Estimate
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
-- **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Outlets**: ${outlets}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Switches**: ${switches}${isGarage ? ' (Appropriate for garage)' : ''}
+- **Square Footage**: ${sqft.toLocaleString()} sq ft
+
+## Electrical Specifications
+| Component | Your Spec | CEC Expected* |
+|-----------|-----------|---------------|
+| Panel Size | ${panelSize}A | ${expected.panel}A |
+| Circuits | ${circuits} | ${expected.circuits} |
+| Outlets | ${outlets} | ${expected.outlets} |
+| Switches | ${switches} | ${expected.switches} |
+
+*CEC Expected: Based on ${sqft} sq ft ${isGarage ? 'garage' : 'house'} per Canadian Electrical Code guidelines${userSpecified && (circuitsDiff || outletsDiff) ? `
+
+**Note**: Your specifications differ from typical requirements. ${circuits > expected.circuits ? 'Higher circuit count may indicate workshop/heavy use.' : ''} ${outlets > expected.outlets ? 'Higher outlet count suitable for workshops with many tools.' : ''}` : ''}
 
 ## Detailed Cost Breakdown
 
 ### Electrical Components
 - **Main Panel Installation**: $${panelInstall.toLocaleString()}
-- **Circuit Installation** (${circuits} circuits @ $150): $${circuitCost.toLocaleString()}
-- **Outlet Installation** (${outlets} outlets @ $85): $${outletCost.toLocaleString()}
+- **Circuit Installation** (${circuits} circuits @ $${circuitRate}): $${circuitCost.toLocaleString()}
+- **Outlet Installation** (${outlets} outlets @ $${outletRate}): $${outletCost.toLocaleString()}
 - **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
 - **Wiring & Materials**: $${wireCost.toLocaleString()}
 
@@ -795,42 +851,44 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
+          const aiSystemPrompt = `You are a team of specialized construction estimation agents creating professional quotes that contractors will trust and use:
 
-1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
-   - Verify all trades comply with ${finalProvinceForAI} building codes
-   - Check electrical code (CEC), plumbing code, fire code
-   - Ensure structural requirements are met
-   - Validate permit requirements
+1. **Pricing Expert Agent**: Validate and enhance pricing for ${finalProvinceForAI}
+   - Verify labor rates match current ${finalProvinceForAI} market (2024-2025 rates)
+   - Validate material costs with current supplier pricing
+   - Add value engineering suggestions (cost savings without sacrificing quality)
+   - Include contingency recommendations (5-10% for typical projects)
 
-2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
-   - Verify labor rates are current for ${finalProvinceForAI} market
-   - Validate material costs against ${finalProvinceForAI} market rates
-   - Check if pricing aligns with industry standards
-   - Flag any unusually high or low costs
-
-3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
+2. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes
+   - Electrical: CEC (Canadian Electrical Code) - GFCI protection, AFCI where required, wire sizing
    - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
-   - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements, especially fire separation for detached structures
+   - Structural: NBC (National Building Code) - load requirements, seismic, snow loads
+   - Fire: Fire separation requirements, smoke/CO detectors
 
-IMPORTANT NOTES:
-- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
-- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
+3. **Contractor Success Agent**: Make this quote professional and sellable
+   - Add a clear scope of work summary
+   - Include payment milestone suggestions (e.g., 30% deposit, 40% rough-in, 30% completion)
+   - List key materials with quality specifications
+   - Add warranty information (standard 1-year workmanship)
+   - Include exclusions to protect the contractor
+   - Suggest timeline with key milestones
 
-Review the provided estimate and provide:
-- Code compliance verification for ${finalProvinceForAI}
-- Pricing validation against ${finalProvinceForAI} market rates
-- Trade-specific code references
-- Any compliance issues or missing requirements
-- Recommended adjustments for accuracy
+IMPORTANT FORMATTING:
+- Use clear headers and bullet points
+- Include specific product recommendations where applicable
+- Add "Exclusions" section (permits obtained by owner, unforeseen conditions, etc.)
+- Add "Terms & Conditions" suggestions
+- Keep language professional but accessible
 
-Format your response with clear sections for each agent's findings.`;
+IMPORTANT NOTES FOR GARAGES:
+- Garages do NOT require egress windows (storage/workshop spaces)
+- Focus on: GFCI outlets, proper ventilation, fire separation from house
+- Include door opener prep, heater circuit, adequate lighting
+
+Enhance this estimate to be professional, accurate, and ready for a contractor to present to their customer.`;
           
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
+          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease enhance this estimate to be a professional contractor quote. Include:\n\n1. **Scope of Work Summary** - Clear bullet points of what's included\n2. **Material Specifications** - Specific brands/models where applicable\n3. **Code Compliance Notes** - Key ${finalProvinceForAI} code requirements met\n4. **Payment Schedule** - Suggested milestone payments\n5. **Timeline** - Realistic project duration with phases\n6. **Exclusions** - What's NOT included (protect the contractor)\n7. **Terms & Conditions** - Standard warranty, change order process\n8. **Value Engineering** - Optional cost savings the customer could consider\n\nMake this quote professional, complete, and ready to present to a customer.`;
           
           let aiEnhancement = '';
           if (hasOpenRouter) {
@@ -840,7 +898,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## Professional Quote Enhancement\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
