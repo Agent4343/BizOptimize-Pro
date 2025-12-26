@@ -851,42 +851,44 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
+          const aiSystemPrompt = `You are a team of specialized construction estimation agents creating professional quotes that contractors will trust and use:
 
-1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
-   - Verify all trades comply with ${finalProvinceForAI} building codes
-   - Check electrical code (CEC), plumbing code, fire code
-   - Ensure structural requirements are met
-   - Validate permit requirements
+1. **Pricing Expert Agent**: Validate and enhance pricing for ${finalProvinceForAI}
+   - Verify labor rates match current ${finalProvinceForAI} market (2024-2025 rates)
+   - Validate material costs with current supplier pricing
+   - Add value engineering suggestions (cost savings without sacrificing quality)
+   - Include contingency recommendations (5-10% for typical projects)
 
-2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
-   - Verify labor rates are current for ${finalProvinceForAI} market
-   - Validate material costs against ${finalProvinceForAI} market rates
-   - Check if pricing aligns with industry standards
-   - Flag any unusually high or low costs
-
-3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
+2. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes
+   - Electrical: CEC (Canadian Electrical Code) - GFCI protection, AFCI where required, wire sizing
    - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
-   - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements, especially fire separation for detached structures
+   - Structural: NBC (National Building Code) - load requirements, seismic, snow loads
+   - Fire: Fire separation requirements, smoke/CO detectors
 
-IMPORTANT NOTES:
-- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
-- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
+3. **Contractor Success Agent**: Make this quote professional and sellable
+   - Add a clear scope of work summary
+   - Include payment milestone suggestions (e.g., 30% deposit, 40% rough-in, 30% completion)
+   - List key materials with quality specifications
+   - Add warranty information (standard 1-year workmanship)
+   - Include exclusions to protect the contractor
+   - Suggest timeline with key milestones
 
-Review the provided estimate and provide:
-- Code compliance verification for ${finalProvinceForAI}
-- Pricing validation against ${finalProvinceForAI} market rates
-- Trade-specific code references
-- Any compliance issues or missing requirements
-- Recommended adjustments for accuracy
+IMPORTANT FORMATTING:
+- Use clear headers and bullet points
+- Include specific product recommendations where applicable
+- Add "Exclusions" section (permits obtained by owner, unforeseen conditions, etc.)
+- Add "Terms & Conditions" suggestions
+- Keep language professional but accessible
 
-Format your response with clear sections for each agent's findings.`;
+IMPORTANT NOTES FOR GARAGES:
+- Garages do NOT require egress windows (storage/workshop spaces)
+- Focus on: GFCI outlets, proper ventilation, fire separation from house
+- Include door opener prep, heater circuit, adequate lighting
+
+Enhance this estimate to be professional, accurate, and ready for a contractor to present to their customer.`;
           
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
+          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease enhance this estimate to be a professional contractor quote. Include:\n\n1. **Scope of Work Summary** - Clear bullet points of what's included\n2. **Material Specifications** - Specific brands/models where applicable\n3. **Code Compliance Notes** - Key ${finalProvinceForAI} code requirements met\n4. **Payment Schedule** - Suggested milestone payments\n5. **Timeline** - Realistic project duration with phases\n6. **Exclusions** - What's NOT included (protect the contractor)\n7. **Terms & Conditions** - Standard warranty, change order process\n8. **Value Engineering** - Optional cost savings the customer could consider\n\nMake this quote professional, complete, and ready to present to a customer.`;
           
           let aiEnhancement = '';
           if (hasOpenRouter) {
@@ -896,7 +898,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## Professional Quote Enhancement\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
