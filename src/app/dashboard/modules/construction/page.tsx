@@ -86,64 +86,337 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
   
   switch(trade.toLowerCase()) {
     case 'electrical':
+      // Calculate CEC-recommended values based on square footage
+      const sqft = parseInt(formData.squareFootage) || (isGarage ? 600 : 2000);
+      const recommendedCircuits = isGarage
+        ? Math.min(2 + Math.ceil(sqft / 150) + (sqft >= 400 ? 2 : 1), 15)
+        : Math.min(Math.ceil(sqft / 75) + 8, 50);
+      const recommendedOutlets = isGarage
+        ? Math.max(4, Math.min(Math.ceil(sqft / 60), 20))
+        : Math.max(15, Math.min(Math.ceil(sqft / 35), 100));
+      const recommendedSwitches = isGarage
+        ? Math.max(2, Math.min(Math.ceil(sqft / 200), 6))
+        : Math.max(8, Math.min(Math.ceil(sqft / 80), 40));
+
       return (
         <div className="space-y-4">
+          {/* CEC Recommendation Banner */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>CEC Recommendation for {sqft} sq ft {isGarage ? 'garage' : 'house'}:</strong><br/>
+              {recommendedCircuits} circuits, {recommendedOutlets} outlets, {recommendedSwitches} switches
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Panel Size (Amps)</label>
-              <Input
-                placeholder="200"
-                type="number"
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.electricalPanelSize}
                 onChange={(e) => setFormData({...formData, electricalPanelSize: e.target.value})}
-              />
+              >
+                <option value="">Select panel size...</option>
+                {isGarage ? (
+                  <>
+                    <option value="60">60A - Small garage, basic lighting</option>
+                    <option value="100">100A - Standard garage (recommended)</option>
+                    <option value="150">150A - Workshop with power tools</option>
+                    <option value="200">200A - Heavy equipment, EV charger</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="100">100A - Small home, basic needs</option>
+                    <option value="150">150A - Medium home</option>
+                    <option value="200">200A - Standard home (recommended)</option>
+                    <option value="400">400A - Large home, high demand</option>
+                  </>
+                )}
+              </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Number of Circuits</label>
-              <Input
-                placeholder="20"
-                type="number"
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.electricalCircuits}
                 onChange={(e) => setFormData({...formData, electricalCircuits: e.target.value})}
-              />
+              >
+                <option value="">Select circuits...</option>
+                {isGarage ? (
+                  <>
+                    <option value="4">4 - Minimal (lights + 1-2 outlets)</option>
+                    <option value="6">6 - Basic garage</option>
+                    <option value="8">8 - Standard garage</option>
+                    <option value="10">10 - Workshop garage</option>
+                    <option value="12">12 - Well-equipped workshop</option>
+                    <option value="15">15 - Heavy-duty workshop</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="15">15 - Small home</option>
+                    <option value="20">20 - Standard home</option>
+                    <option value="25">25 - Medium home</option>
+                    <option value="30">30 - Larger home</option>
+                    <option value="40">40 - Large home</option>
+                    <option value="50">50 - Very large home</option>
+                  </>
+                )}
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Outlets</label>
-              <Input
-                placeholder="30"
-                type="number"
+              <label className="text-sm font-medium">Number of Outlets</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.electricalOutlets}
                 onChange={(e) => setFormData({...formData, electricalOutlets: e.target.value})}
-              />
+              >
+                <option value="">Select outlets...</option>
+                {isGarage ? (
+                  <>
+                    <option value="4">4 - Minimal</option>
+                    <option value="6">6 - Basic</option>
+                    <option value="8">8 - Standard</option>
+                    <option value="10">10 - Well-equipped</option>
+                    <option value="12">12 - Workshop</option>
+                    <option value="15">15 - Heavy workshop</option>
+                    <option value="20">20 - Professional workshop</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="20">20 - Small home</option>
+                    <option value="30">30 - Standard home</option>
+                    <option value="40">40 - Medium home</option>
+                    <option value="50">50 - Larger home</option>
+                    <option value="60">60 - Large home</option>
+                    <option value="80">80 - Very large home</option>
+                  </>
+                )}
+              </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Switches</label>
-              <Input
-                placeholder="15"
-                type="number"
+              <label className="text-sm font-medium">Number of Switches</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.electricalSwitches}
                 onChange={(e) => setFormData({...formData, electricalSwitches: e.target.value})}
-              />
+              >
+                <option value="">Select switches...</option>
+                {isGarage ? (
+                  <>
+                    <option value="2">2 - Basic (1-2 zones)</option>
+                    <option value="3">3 - Standard</option>
+                    <option value="4">4 - Multiple zones</option>
+                    <option value="6">6 - Well-lit workshop</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="10">10 - Small home</option>
+                    <option value="15">15 - Standard home</option>
+                    <option value="20">20 - Medium home</option>
+                    <option value="25">25 - Larger home</option>
+                    <option value="30">30 - Large home</option>
+                    <option value="40">40 - Very large home</option>
+                  </>
+                )}
+              </select>
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Lighting Fixtures</label>
-            <Input
-              placeholder="Recessed, pendant, chandelier, etc."
+            <label className="text-sm font-medium">Lighting Type</label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.electricalLighting}
               onChange={(e) => setFormData({...formData, electricalLighting: e.target.value})}
-            />
+            >
+              <option value="">Select lighting type...</option>
+              {isGarage ? (
+                <>
+                  <option value="LED shop lights">LED Shop Lights (most common)</option>
+                  <option value="Fluorescent tubes">Fluorescent Tubes</option>
+                  <option value="High bay LED">High Bay LED (high ceilings)</option>
+                  <option value="Recessed LED">Recessed LED</option>
+                  <option value="Mixed lighting">Mixed (shop + task lighting)</option>
+                </>
+              ) : (
+                <>
+                  <option value="Recessed LED">Recessed LED (most common)</option>
+                  <option value="Chandelier and pendants">Chandelier and Pendants</option>
+                  <option value="Track lighting">Track Lighting</option>
+                  <option value="Flush mount">Flush Mount Fixtures</option>
+                  <option value="Mixed residential">Mixed Residential</option>
+                </>
+              )}
+            </select>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="EV charger, generator, smart home, etc."
-              value={formData.electricalSpecial}
-              onChange={(e) => setFormData({...formData, electricalSpecial: e.target.value})}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              {isGarage ? (
+                <>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('EV charger')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'EV charger (240V 50A)'
+                          : current.replace(/,?\s*EV charger \(240V 50A\)/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">EV Charger (240V 50A)</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Welder outlet')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Welder outlet (240V)'
+                          : current.replace(/,?\s*Welder outlet \(240V\)/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Welder Outlet (240V)</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Heater circuit')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Heater circuit'
+                          : current.replace(/,?\s*Heater circuit/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Heater Circuit</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Air compressor')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Air compressor (240V)'
+                          : current.replace(/,?\s*Air compressor \(240V\)/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Air Compressor (240V)</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Exterior lights')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Exterior lights'
+                          : current.replace(/,?\s*Exterior lights/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Exterior Lights</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Door opener')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Door opener circuit'
+                          : current.replace(/,?\s*Door opener circuit/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Door Opener Circuit</span>
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Smart home')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Smart home wiring'
+                          : current.replace(/,?\s*Smart home wiring/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Smart Home Wiring</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Generator hookup')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Generator hookup'
+                          : current.replace(/,?\s*Generator hookup/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Generator Hookup</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('EV charger')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'EV charger (240V 50A)'
+                          : current.replace(/,?\s*EV charger \(240V 50A\)/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">EV Charger</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Hot tub')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Hot tub circuit (240V 50A)'
+                          : current.replace(/,?\s*Hot tub circuit \(240V 50A\)/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Hot Tub Circuit</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Ceiling fans')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Ceiling fans'
+                          : current.replace(/,?\s*Ceiling fans/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Ceiling Fans</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <input type="checkbox" className="rounded"
+                      checked={formData.electricalSpecial?.includes('Outdoor lighting')}
+                      onChange={(e) => {
+                        const current = formData.electricalSpecial || '';
+                        const updated = e.target.checked
+                          ? current + (current ? ', ' : '') + 'Outdoor lighting'
+                          : current.replace(/,?\s*Outdoor lighting/, '');
+                        setFormData({...formData, electricalSpecial: updated});
+                      }}
+                    />
+                    <span className="text-sm">Outdoor Lighting</span>
+                  </label>
+                </>
+              )}
+            </div>
           </div>
         </div>
       );
