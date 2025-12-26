@@ -907,19 +907,15 @@ Format your response with clear sections for each agent's findings.`;
       }
     }
 
-    // Extract cost and savings amounts from response
+    // Extract cost from response
     const totalCostMatch = defaultResponse.match(/\*\*Total Project Cost\*\*: \$([\d,]+)/) ||
                           defaultResponse.match(/Total.*Cost.*\$([\d,]+)/i);
-    const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/) ||
-                        defaultResponse.match(/Total.*Savings.*\$([\d,]+)/i);
-    
+
     const totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
-    const estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
 
     return NextResponse.json({
       success: true,
       result: defaultResponse,
-      estimatedSavings,
       totalCost,
       businessType,
       optimizationType,
