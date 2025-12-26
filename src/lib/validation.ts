@@ -126,7 +126,13 @@ export function validateEstimate(estimate: {
   if (estimate.totalCost > 10000000) {
     errors.push('Total cost seems unreasonably high. Please verify inputs.');
   }
-  
+
+  // Validate square footage before division to prevent division by zero
+  if (estimate.squareFootage <= 0) {
+    errors.push('Square footage must be greater than zero');
+    return { valid: false, errors };
+  }
+
   // Cost per sq ft sanity check
   const costPerSqft = estimate.totalCost / estimate.squareFootage;
   
