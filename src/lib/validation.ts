@@ -54,7 +54,7 @@ export function validateSquareFootage(sqft: string | number): ValidationResult {
 
 // Validate trade selection
 export function validateTrade(trade: string): ValidationResult {
-  const validTrades = ['electrical', 'plumbing', 'hvac', 'framing', 'roofing', 'foundation', 'drywall', 'flooring', 'painting'];
+  const validTrades = ['electrical', 'plumbing', 'hvac', 'framing', 'roofing', 'foundation', 'drywall', 'flooring', 'painting', 'construction'];
   
   if (!trade) {
     return { valid: false, errors: ['Trade selection is required'] };

@@ -294,7 +294,18 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
     // General
     existingConditions: "",
     accessIssues: "",
-    timeline: ""
+    timeline: "",
+    // Full Construction
+    constructionType: "",
+    numFloors: "",
+    numBedrooms: "",
+    numBathrooms: "",
+    exteriorFinish: "",
+    interiorFinishLevel: "",
+    hasGeneralContractor: "",
+    garageType: "",
+    garageFinished: "",
+    garageDoorSize: ""
   });
 
   const generateEstimate = async () => {
@@ -416,15 +427,20 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                     }}
                   >
                     <option value="">Select a trade...</option>
-                    <option value="electrical">Electrical</option>
-                    <option value="plumbing">Plumbing</option>
-                    <option value="hvac">HVAC</option>
-                    <option value="framing">Framing</option>
-                    <option value="roofing">Roofing</option>
-                    <option value="foundation">Foundation</option>
-                    <option value="drywall">Drywall</option>
-                    <option value="flooring">Flooring</option>
-                    <option value="painting">Painting</option>
+                    <optgroup label="Full Project">
+                      <option value="construction">Full Construction (All Trades)</option>
+                    </optgroup>
+                    <optgroup label="Individual Trades">
+                      <option value="electrical">Electrical</option>
+                      <option value="plumbing">Plumbing</option>
+                      <option value="hvac">HVAC</option>
+                      <option value="framing">Framing</option>
+                      <option value="roofing">Roofing</option>
+                      <option value="foundation">Foundation</option>
+                      <option value="drywall">Drywall</option>
+                      <option value="flooring">Flooring</option>
+                      <option value="painting">Painting</option>
+                    </optgroup>
                   </select>
                 </div>
               )}

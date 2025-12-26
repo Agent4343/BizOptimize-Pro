@@ -54,6 +54,17 @@ export interface ConstructionFormData {
   existingConditions: string;
   accessIssues: string;
   timeline: string;
+  // Full Construction
+  constructionType: string;  // new construction, renovation, addition
+  numFloors: string;
+  numBedrooms: string;
+  numBathrooms: string;
+  exteriorFinish: string;
+  interiorFinishLevel: string;
+  hasGeneralContractor: string;
+  garageType: string;  // detached, attached
+  garageFinished: string;  // finished, unfinished
+  garageDoorSize: string;
 }
 
 export interface BasicInfo {
@@ -123,4 +134,15 @@ export const INITIAL_FORM_DATA: ConstructionFormData = {
   existingConditions: "",
   accessIssues: "",
   timeline: "",
+  // Full Construction
+  constructionType: "",
+  numFloors: "",
+  numBedrooms: "",
+  numBathrooms: "",
+  exteriorFinish: "",
+  interiorFinishLevel: "",
+  hasGeneralContractor: "",
+  garageType: "",
+  garageFinished: "",
+  garageDoorSize: "",
 };

@@ -456,6 +456,262 @@ export function TradeSpecificFields({ trade, formData, setFormData }: TradeSpeci
         </div>
       );
 
+    case 'construction':
+      return (
+        <div className="space-y-4">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+            <p className="text-sm text-blue-700">
+              <strong>Full Construction Estimate:</strong> This will generate a comprehensive estimate covering all trades (foundation, framing, roofing, electrical, plumbing, HVAC, drywall, flooring, and painting).
+            </p>
+          </div>
+
+          {isGarage ? (
+            // Garage-specific fields
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Garage Type</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.garageType}
+                    onChange={(e) => setFormData({ ...formData, garageType: e.target.value })}
+                  >
+                    <option value="">Select type...</option>
+                    <option value="detached">Detached</option>
+                    <option value="attached">Attached</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Finish Level</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.garageFinished}
+                    onChange={(e) => setFormData({ ...formData, garageFinished: e.target.value })}
+                  >
+                    <option value="">Select...</option>
+                    <option value="unfinished">Unfinished (no insulation/drywall)</option>
+                    <option value="insulated">Insulated Only</option>
+                    <option value="finished">Fully Finished (insulated + drywalled)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Foundation Type</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.foundationType}
+                    onChange={(e) => setFormData({ ...formData, foundationType: e.target.value })}
+                  >
+                    <option value="">Select type...</option>
+                    <option value="slab">Concrete Slab</option>
+                    <option value="frost-wall">Frost Wall</option>
+                    <option value="full-foundation">Full Foundation</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Garage Door Size</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.garageDoorSize}
+                    onChange={(e) => setFormData({ ...formData, garageDoorSize: e.target.value })}
+                  >
+                    <option value="">Select size...</option>
+                    <option value="single">Single (8-10 ft)</option>
+                    <option value="double">Double (16 ft)</option>
+                    <option value="both">Single + Double</option>
+                    <option value="two-single">Two Single Doors</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Roofing Material</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.roofingMaterial}
+                  onChange={(e) => setFormData({ ...formData, roofingMaterial: e.target.value })}
+                >
+                  <option value="">Select material...</option>
+                  <option value="asphalt-shingles">Asphalt Shingles</option>
+                  <option value="metal">Metal</option>
+                  <option value="match-house">Match Existing House</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Electrical Needed?</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.electricalSpecial}
+                    onChange={(e) => setFormData({ ...formData, electricalSpecial: e.target.value })}
+                  >
+                    <option value="">Select...</option>
+                    <option value="basic">Basic (lights + outlets)</option>
+                    <option value="standard">Standard (+ 240V outlet)</option>
+                    <option value="full">Full (+ subpanel, EV charger)</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">HVAC/Heating?</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.hvacSystemType}
+                    onChange={(e) => setFormData({ ...formData, hvacSystemType: e.target.value })}
+                  >
+                    <option value="">Select...</option>
+                    <option value="none">None</option>
+                    <option value="space-heater">Space Heater</option>
+                    <option value="radiant-floor">Radiant Floor</option>
+                    <option value="mini-split">Mini-Split (Heat/Cool)</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          ) : (
+            // House/Commercial-specific fields
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Construction Type</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.constructionType}
+                    onChange={(e) => setFormData({ ...formData, constructionType: e.target.value })}
+                  >
+                    <option value="">Select type...</option>
+                    <option value="new">New Construction</option>
+                    <option value="renovation">Major Renovation</option>
+                    <option value="addition">Addition</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Number of Floors</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.numFloors}
+                    onChange={(e) => setFormData({ ...formData, numFloors: e.target.value })}
+                  >
+                    <option value="">Select...</option>
+                    <option value="1">1 Floor (Bungalow)</option>
+                    <option value="1.5">1.5 Floors (Raised Bungalow)</option>
+                    <option value="2">2 Floors</option>
+                    <option value="3">3+ Floors</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Number of Bedrooms</label>
+                  <Input
+                    placeholder="3"
+                    type="number"
+                    value={formData.numBedrooms}
+                    onChange={(e) => setFormData({ ...formData, numBedrooms: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Number of Bathrooms</label>
+                  <Input
+                    placeholder="2"
+                    type="number"
+                    value={formData.numBathrooms}
+                    onChange={(e) => setFormData({ ...formData, numBathrooms: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Foundation Type</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.foundationType}
+                    onChange={(e) => setFormData({ ...formData, foundationType: e.target.value })}
+                  >
+                    <option value="">Select type...</option>
+                    <option value="slab">Concrete Slab</option>
+                    <option value="crawlspace">Crawl Space</option>
+                    <option value="full-basement">Full Basement</option>
+                    <option value="walkout-basement">Walkout Basement</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">HVAC System</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.hvacSystemType}
+                    onChange={(e) => setFormData({ ...formData, hvacSystemType: e.target.value })}
+                  >
+                    <option value="">Select system...</option>
+                    <option value="forced-air">Forced Air (Gas/Electric)</option>
+                    <option value="heat-pump">Heat Pump</option>
+                    <option value="boiler">Boiler (Radiant)</option>
+                    <option value="mini-split">Ductless Mini-Split</option>
+                    <option value="geothermal">Geothermal</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Exterior Finish</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.exteriorFinish}
+                    onChange={(e) => setFormData({ ...formData, exteriorFinish: e.target.value })}
+                  >
+                    <option value="">Select finish...</option>
+                    <option value="vinyl-siding">Vinyl Siding</option>
+                    <option value="fiber-cement">Fiber Cement (Hardie)</option>
+                    <option value="brick">Brick</option>
+                    <option value="stone">Stone</option>
+                    <option value="stucco">Stucco</option>
+                    <option value="mixed">Mixed Materials</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Interior Finish Level</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.interiorFinishLevel}
+                    onChange={(e) => setFormData({ ...formData, interiorFinishLevel: e.target.value })}
+                  >
+                    <option value="">Select level...</option>
+                    <option value="builder-basic">Builder Basic</option>
+                    <option value="standard">Standard</option>
+                    <option value="upgraded">Upgraded</option>
+                    <option value="luxury">Luxury/Custom</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Roofing Material</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.roofingMaterial}
+                  onChange={(e) => setFormData({ ...formData, roofingMaterial: e.target.value })}
+                >
+                  <option value="">Select material...</option>
+                  <option value="asphalt-shingles">Asphalt Shingles</option>
+                  <option value="metal">Metal</option>
+                  <option value="tile">Tile</option>
+                  <option value="slate">Slate</option>
+                  <option value="cedar-shake">Cedar Shake</option>
+                </select>
+              </div>
+            </>
+          )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Additional Requirements or Special Features</label>
+            <textarea
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+              placeholder="Custom kitchen, accessibility features, solar panels, EV charging, smart home, etc."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+        </div>
+      );
+
     default:
       return null;
   }

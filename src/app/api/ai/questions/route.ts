@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractProvinceEnhanced } from '@/lib/province-data';
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
+import { sanitizeForPrompt, sanitizeTrade, sanitizeProvince } from '@/lib/sanitize';
 
 // Helper function to call OpenAI API
 async function callOpenAI(prompt: string, systemPrompt: string) {
@@ -76,19 +78,34 @@ function extractProvince(location: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = checkRateLimit(`ai-questions:${clientId}`, RATE_LIMITS.aiQuestions);
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
-    const { 
-      trade, 
-      conversation, 
-      currentAnswer,
-      projectType,
-      location,
-      squareFootage,
-      province
-    } = body;
+
+    // Sanitize inputs
+    const trade = sanitizeTrade(body.trade || '') || 'construction';
+    const conversation = body.conversation || [];
+    const currentAnswer = sanitizeForPrompt(body.currentAnswer || '');
+    const projectType = sanitizeForPrompt(body.projectType || '');
+    const location = sanitizeForPrompt(body.location || '');
+    const squareFootage = sanitizeForPrompt(body.squareFootage || '');
+    const province = sanitizeProvince(body.province || '');
 
     // Use provided province if available, otherwise extract from location
-    const finalProvince = province || extractProvince(location || '');
+    const finalProvince = province || extractProvince(location);
 
     // Build conversation history
     const conversationHistory = conversation || [];
@@ -99,10 +116,40 @@ export async function POST(request: NextRequest) {
     // Determine if we have enough information
     const hasBasicInfo = projectType && location && squareFootage;
     
-    // Build system prompt for question generation
-    const systemPrompt = `You are an expert construction estimator assistant specializing in ${trade} work in ${finalProvince}, Canada.
+    // Determine trade description for prompts
+    const isFullConstruction = trade === 'construction';
+    const tradeDescription = isFullConstruction
+      ? 'full construction (all trades including foundation, framing, electrical, plumbing, HVAC, roofing, drywall, flooring, and painting)'
+      : `${trade}`;
 
-Your role is to ask intelligent, relevant questions to gather all necessary information for an accurate ${trade} estimate. 
+    // Build system prompt for question generation
+    const systemPrompt = isFullConstruction
+      ? `You are an expert construction estimator assistant for full construction projects in ${finalProvince}, Canada.
+
+Your role is to ask intelligent questions to gather information needed for a comprehensive construction estimate covering ALL trades.
+
+IMPORTANT GUIDELINES:
+1. Ask ONE question at a time
+2. Cover all major aspects: foundation, structure, mechanical (electrical, plumbing, HVAC), exterior, interior finishes
+3. Consider ${finalProvince} building codes and regulations
+4. For ${projectType === 'garage' ? 'garage' : 'residential'} projects, ask appropriate questions
+5. For garages: focus on foundation, framing, roofing, basic electrical, optional plumbing/HVAC
+6. For houses: cover all trades comprehensively
+7. Once you have enough information (usually 8-10 questions), respond with "READY_TO_ESTIMATE"
+
+Current information gathered:
+- Project Type: ${projectType || 'Not specified'}
+- Location: ${location || 'Not specified'} (${finalProvince})
+- Square Footage: ${squareFootage || 'Not specified'}
+
+Focus on questions that affect MULTIPLE trades or overall project scope.
+
+Respond with either:
+- A single, specific question (if more info is needed)
+- "READY_TO_ESTIMATE" followed by a summary (if we have enough info)`
+      : `You are an expert construction estimator assistant specializing in ${trade} work in ${finalProvince}, Canada.
+
+Your role is to ask intelligent, relevant questions to gather all necessary information for an accurate ${trade} estimate.
 
 IMPORTANT GUIDELINES:
 1. Ask ONE question at a time
@@ -196,6 +243,29 @@ function generateFallbackQuestion(
 
   // Trade-specific question sequences
   const questionSets: Record<string, string[]> = {
+    construction: isGarage ? [
+      'Will this be a detached garage or attached to the main building?',
+      'Will the garage be finished (insulated, drywalled) or unfinished?',
+      'What foundation type? (concrete slab, frost wall)',
+      'What size overhead door(s) do you need? (single, double, both)',
+      'Will you need electrical? (outlets, lighting, 240V for tools/EV charger)',
+      'Will you need any plumbing? (utility sink, hose bib)',
+      'What roofing material? (asphalt shingles, metal)',
+      'Will you need heating/cooling? If so, what type?',
+      'Any additional features? (windows, man door, workbench, storage)'
+    ] : [
+      'Is this new construction or a major renovation/addition?',
+      'How many floors/stories?',
+      'How many bedrooms and bathrooms?',
+      'What foundation type? (slab, crawl space, full basement)',
+      'What heating/cooling system? (forced air, heat pump, boiler, etc.)',
+      'What exterior finish? (siding, brick, stucco)',
+      'What roofing material? (asphalt shingles, metal, tile)',
+      'What interior finish level? (standard, upgraded, luxury)',
+      'Do you have a general contractor or will you be managing trades separately?',
+      'What is your target completion date?',
+      'Are there any specific features or requirements? (custom kitchen, special finishes, accessibility, etc.)'
+    ],
     electrical: isGarage ? [
       'What is the main electrical panel size needed? (e.g., 100 Amp, 200 Amp)',
       'How many electrical outlets do you need?',
