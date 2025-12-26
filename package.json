@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "AI-Powered Business Optimization SaaS Platform",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
