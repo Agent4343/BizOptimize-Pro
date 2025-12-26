@@ -242,6 +242,7 @@ function generateFallbackQuestion(
   const isGarage = projectType === 'garage';
 
   // Trade-specific question sequences - comprehensive for professional estimates
+  // Includes pricing and material quality questions for accurate quoting
   const questionSets: Record<string, string[]> = {
     construction: isGarage ? [
       'Will this be a detached garage or attached to the main building?',
@@ -256,7 +257,11 @@ function generateFallbackQuestion(
       'Will you need any plumbing? (utility sink, hose bib, floor drain)',
       'Do you need heating/cooling? (none, space heater, radiant floor, mini-split)',
       'What insulation level? (none, basic R-12, premium R-20+)',
-      'Any additional features? (workbench, storage shelving, attic storage access)'
+      // Pricing questions
+      'What quality level for materials? (Economy/budget, Standard, Premium)',
+      'Are you supplying any materials yourself or contractor supplies all?',
+      'Do you have a target budget for this project?',
+      'Do you want an itemized parts list with the quote?'
     ] : [
       'Is this new construction, major renovation, or an addition?',
       'How many floors/stories will the home be?',
@@ -271,7 +276,11 @@ function generateFallbackQuestion(
       'What flooring throughout? (hardwood, laminate, tile, carpet, or mixed)',
       'Do you have a general contractor or managing trades separately?',
       'Any energy efficiency goals? (standard code, high-efficiency, Net-Zero ready)',
-      'Any accessibility requirements or special features? (custom kitchen, deck/patio, smart home)'
+      // Pricing questions
+      'What overall quality level for materials and finishes? (Builder grade, Standard, Premium, Luxury)',
+      'Are you or another supplier providing any materials?',
+      'What is your total budget range for this project?',
+      'Do you want itemized pricing by trade so you can choose which to proceed with?'
     ],
     electrical: isGarage ? [
       'Is this new electrical or upgrading an existing garage?',
@@ -281,26 +290,37 @@ function generateFallbackQuestion(
       'What lighting do you need? (LED shop lights, recessed, exterior motion lights)',
       'Do you need a garage door opener circuit?',
       'Will you need outdoor outlets (GFCI protected)?',
-      'Any special requirements? (sub-panel, generator hookup, smart controls)'
+      // Pricing questions
+      'What quality level for electrical components? (Economy, Standard, Commercial-grade)',
+      'Any preferred brands? (Eaton, Siemens, Square D, Leviton)',
+      'Are you supplying any fixtures or switches yourself?',
+      'Do you need an itemized quote with each part/component priced?'
     ] : [
       'Is this new electrical installation or upgrading/expanding existing?',
       'What main panel size? (100 Amp, 200 Amp, 400 Amp)',
       'How many 15A and 20A circuits do you need?',
       'What 240V appliances? (stove, dryer, AC, water heater, EV charger - list all)',
       'How many outlets per room on average?',
-      'What type of lighting? (recessed, pendant, chandelier, under-cabinet - by room)',
+      'What type of lighting? (recessed LED, pendant, chandelier, under-cabinet - by room)',
       'Do you need GFCI protection? (required for bathrooms, kitchen, outdoor, garage)',
       'Do you need AFCI protection? (required for bedrooms in most provinces)',
       'Any dedicated circuits needed? (home office, workshop, server room)',
       'Smart home features? (smart switches, whole-home automation, structured wiring)',
-      'Do you need generator/backup power hookup?',
-      'Any outdoor electrical? (deck lighting, pool/hot tub, landscape lighting)'
+      // Pricing questions
+      'What quality level? (Builder-grade outlets/switches, Standard, Decora-style premium)',
+      'Any preferred brands? (Leviton, Lutron, Legrand, or budget options)',
+      'What brand for the panel? (Eaton, Siemens, Square D)',
+      'Are you supplying any light fixtures or do you need a fixture allowance?',
+      'Do you want an itemized parts list showing each component cost?'
     ],
     plumbing: isGarage ? [
       'Do you need any plumbing in the garage?',
       'What fixtures? (utility sink, floor drain, hose bib)',
       'Do you need hot water to the garage? (for utility sink)',
-      'Is there existing plumbing nearby or is this a new run?'
+      'Is there existing plumbing nearby or is this a new run?',
+      // Pricing questions
+      'What quality for fixtures? (Basic utility, Standard, Premium)',
+      'Do you want an itemized quote with parts and labor separated?'
     ] : [
       'Is this new plumbing or extending/upgrading existing?',
       'Is the property on municipal water/sewer or well/septic?',
@@ -312,16 +332,23 @@ function generateFallbackQuestion(
       'Will there be basement plumbing? (bathroom, utility sink, floor drain)',
       'Do you need a backwater valve for flood protection?',
       'Do you need water treatment? (softener, filtration, reverse osmosis)',
-      'Any outdoor hose bibs or irrigation connections?',
       'Do you need gas line work? (for water heater, stove, dryer, fireplace)',
-      'Any special fixtures? (garbage disposal, pot filler, steam shower, bidet)'
+      // Pricing questions
+      'What quality level for fixtures? (Builder-basic, Mid-range, Premium brands like Kohler/Moen)',
+      'Any specific fixture brands preferred?',
+      'What pipe material preference? (PEX standard, copper premium, ABS for drains)',
+      'Are you supplying any fixtures yourself (toilets, sinks, faucets)?',
+      'Do you want an itemized breakdown showing fixture costs vs labor?'
     ],
     hvac: isGarage ? [
       'Do you need heating in the garage?',
       'What heating type? (electric space heater, gas unit heater, radiant floor, mini-split)',
       'What temperature do you want to maintain? (just above freezing, comfortable workspace)',
       'Do you need cooling or just ventilation?',
-      'Any ventilation needs for fumes/dust? (exhaust fan, fresh air intake)'
+      // Pricing questions
+      'What quality/efficiency level? (Basic, Mid-efficiency, High-efficiency)',
+      'Any brand preference? (Lennox, Carrier, Goodman, etc.)',
+      'Do you want an itemized quote with equipment and labor separated?'
     ] : [
       'Is this a new HVAC system or replacing existing?',
       'What heating type? (gas forced air, electric forced air, heat pump, boiler, geothermal)',
@@ -332,9 +359,12 @@ function generateFallbackQuestion(
       'Where will equipment be located? (basement, attic, outdoor, utility room)',
       'Do you need a humidifier or dehumidifier?',
       'Do you need air quality improvements? (HEPA filtration, UV purification, ERV/HRV)',
-      'What thermostat type? (basic programmable, smart/WiFi, zoned)',
-      'Any high-ceiling areas or special rooms? (affects sizing)',
-      'Is this for radiant floor heating? (affects entire system design)'
+      'What thermostat type? (basic programmable, smart/WiFi like Nest/Ecobee)',
+      // Pricing questions
+      'What efficiency level? (Standard 80% furnace/14 SEER AC, High-efficiency 96%/18+ SEER)',
+      'Any brand preference? (Lennox, Carrier, Trane, Goodman, Daikin for mini-splits)',
+      'Do you want the quote to show equipment cost separately from installation?',
+      'Are there any rebates in ${province} we should factor in?'
     ],
     framing: isGarage ? [
       'Is this new construction or adding to existing structure?',
@@ -343,7 +373,10 @@ function generateFallbackQuestion(
       'What material? (wood 2x4, wood 2x6 for insulation, steel)',
       'What roof style? (gable, hip, shed, match existing home)',
       'What roof pitch?',
-      'Any special features? (attic storage trusses, bonus room above)'
+      // Pricing questions
+      'What lumber grade? (SPF standard, Pressure-treated where needed, Premium)',
+      'Are you supplying any materials or contractor supplies all?',
+      'Do you want an itemized materials list with quantities and costs?'
     ] : [
       'Is this new framing or renovation/addition?',
       'What material type? (wood 2x4, 2x6 for better insulation, steel, engineered)',
@@ -353,24 +386,29 @@ function generateFallbackQuestion(
       'Any exposed beam ceilings or tray ceilings?',
       'Are there load-bearing walls to work around or remove?',
       'Any open-concept areas requiring long beam spans?',
-      'What are your local snow and wind load requirements?',
       'Do you need engineered trusses or stick-built?',
-      'Any special structural requirements? (large windows, cantilevers, dormers)'
+      // Pricing questions
+      'What lumber grade? (Standard SPF, #2 or better, Premium)',
+      'Will you need engineered lumber? (LVL beams, I-joists, TJIs)',
+      'Are trusses being ordered or built on-site?',
+      'Do you want an itemized materials list with current lumber pricing?'
     ],
     roofing: [
       'Is this a complete roof replacement or new construction?',
       'If replacement, what is the current roofing condition?',
-      'What roofing material? (asphalt 3-tab, architectural shingles, metal standing seam, metal shingle, tile, slate, cedar shake)',
+      'What roofing material? (3-tab shingles, architectural, metal standing seam, metal shingle)',
       'What is the roof pitch? (4/12, 6/12, 8/12, 12/12, etc.)',
       'What is the approximate roof area in square feet?',
       'How many layers to remove? (if replacement)',
-      'Are there any roof penetrations? (chimney, skylights, plumbing vents, exhaust fans)',
-      'What type of roof ventilation? (soffit/ridge vents, gable vents, powered vents)',
+      'Are there any roof penetrations? (chimney, skylights, plumbing vents)',
+      'What type of roof ventilation? (soffit/ridge vents, gable vents)',
       'Do you need ice dam protection? (ice and water shield at eaves)',
-      'What type of underlayment? (felt, synthetic)',
-      'Do you need new gutters and downspouts? (aluminum, copper, seamless)',
-      'Any flashing work needed? (chimney, walls, valleys)',
-      'What warranty level? (standard, extended, lifetime)'
+      'Do you need new gutters and downspouts?',
+      // Pricing questions
+      'What shingle grade? (25-year basic, 30-year standard, Lifetime premium)',
+      'Any brand preference? (BP, IKO, GAF, CertainTeed, Owens Corning)',
+      'What warranty level? (standard, extended, transferable)',
+      'Do you want the quote itemized showing materials vs labor?'
     ],
     foundation: [
       'Is this a new foundation or repair/underpinning existing?',
@@ -384,38 +422,44 @@ function generateFallbackQuestion(
       'Will the basement be finished? (affects waterproofing and egress)',
       'What waterproofing is needed? (damp-proofing, membrane, interior/exterior)',
       'Do you need a sump pump and pit?',
-      'Do you need weeping tile/drain tile around the perimeter?',
       'Do you need radon mitigation piping roughed in?',
-      'Floor finish? (bare concrete, sealed, epoxy, polished)',
-      'Any below-grade windows or egress requirements?'
+      // Pricing questions
+      'What concrete strength? (Standard 25MPa, High-strength 30MPa+)',
+      'What floor finish? (bare concrete, sealed, epoxy, polished)',
+      'What quality waterproofing? (Basic damp-proofing, Standard membrane, Premium system)',
+      'Do you want an itemized quote showing excavation, concrete, and waterproofing separately?'
     ],
     drywall: [
       'Is this new drywall or patching/repairing existing?',
       'What total area needs drywall? (walls and ceilings in square feet)',
-      'What drywall type needed by area? (standard, moisture-resistant green board for bathrooms, fire-rated Type X)',
+      'What drywall type needed by area? (standard, moisture-resistant, fire-rated Type X)',
       'What thickness? (1/2" standard, 5/8" for fire rating or ceilings)',
       'What finish level? (Level 3 for texture, Level 4 for flat paint, Level 5 for smooth/gloss)',
       'Any soundproofing needed? (between floors, media room, bedrooms)',
       'Any curved walls or special shapes?',
       'Will taping and mudding be included?',
-      'Will sanding and priming be included?',
       'Are high ceilings involved? (affects scaffolding needs)',
-      'Any existing damage or repairs needed first?'
+      // Pricing questions
+      'What drywall brand? (CertainTeed, CGC/USG, or economy)',
+      'What mud/compound type? (all-purpose, lightweight, premium)',
+      'Is priming included or separate painting quote?',
+      'Do you want an itemized quote showing materials vs labor?'
     ],
     flooring: [
       'Is existing flooring being removed? What type and how much?',
       'What is the subfloor type? (plywood, OSB, concrete)',
       'What is the subfloor condition? (level, needs repair, moisture issues)',
       'What flooring type for each area? (hardwood, engineered wood, laminate, LVP/LVT, tile, carpet)',
-      'What quality/grade level? (economy, mid-range, premium)',
       'What is the total area per flooring type? (square feet)',
       'Is underlayment needed? (foam, cork, moisture barrier)',
       'Any radiant floor heating under the flooring?',
       'Are transitions between rooms/materials needed?',
       'Do you need baseboards and shoe molding installed?',
-      'Any stairs to be done?',
-      'Any special patterns? (herringbone, diagonal, borders)',
-      'Is this a basement with moisture concerns?'
+      // Pricing questions
+      'What quality/grade level? (Economy $2-4/sqft, Mid-range $4-8/sqft, Premium $8+/sqft)',
+      'Any preferred brands? (e.g., for LVP: Shaw, Mohawk, or budget options)',
+      'Are you supplying the flooring materials or contractor provides?',
+      'Do you want an itemized quote showing material cost vs installation labor?'
     ],
     painting: [
       'Is this new construction or repainting existing surfaces?',
@@ -423,16 +467,17 @@ function generateFallbackQuestion(
       'What is the total wall area? (square feet - or number of rooms)',
       'What is the ceiling area if included?',
       'What is the surface condition? (new drywall, good, needs prep/repair)',
-      'Is pressure washing needed? (exterior)',
-      'Is scraping or stripping old paint needed?',
       'Do you need primer? (new surfaces, stains, color change)',
       'How many coats of finish paint? (typically 2)',
-      'What paint quality? (economy, mid-grade, premium)',
       'What sheen levels? (flat for ceilings, eggshell for walls, semi-gloss for trim)',
       'Are trim, doors, and baseboards included?',
-      'Any accent walls or multiple colors?',
       'Any high ceilings or difficult access areas?',
-      'Any special finishes? (texture, faux finish, cabinet painting)'
+      // Pricing questions
+      'What paint quality? (Economy like Glidden, Mid-grade like Behr, Premium like Benjamin Moore/Sherwin-Williams)',
+      'Any specific brand preference?',
+      'Are you supplying the paint or contractor provides?',
+      'Do you want paint costs itemized separately from labor?',
+      'Do you need a color consultation or are colors already selected?'
     ]
   };
 
