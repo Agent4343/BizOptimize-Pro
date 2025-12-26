@@ -80,6 +80,40 @@ export interface ConversationMessage {
   content: string;
 }
 
+// Trade estimate for individual trade quotes
+export interface TradeEstimate {
+  trade: string;
+  tradeName: string;
+  cost: number;
+  savings: number;
+  optimizedCost: number;
+  breakdown: string;
+  selected: boolean;
+}
+
+// Full construction estimate with trade breakdown
+export interface FullConstructionEstimate {
+  trades: TradeEstimate[];
+  totalCost: number;
+  totalSavings: number;
+  projectSummary: string;
+}
+
+// All available trades for construction
+export const ALL_TRADES = [
+  'foundation',
+  'framing',
+  'roofing',
+  'electrical',
+  'plumbing',
+  'hvac',
+  'drywall',
+  'flooring',
+  'painting'
+] as const;
+
+export type TradeName = typeof ALL_TRADES[number];
+
 export const INITIAL_FORM_DATA: ConstructionFormData = {
   projectName: "",
   projectType: "",

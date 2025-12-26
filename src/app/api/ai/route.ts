@@ -3,6 +3,27 @@ import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/provin
 import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-codes';
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
 import { sanitizeForPrompt, sanitizeProvince, sanitizeTrade, sanitizeProjectType } from '@/lib/sanitize';
+import { TradeEstimate, ALL_TRADES } from '@/lib/construction-types';
+
+// Trade name mapping for display
+const TRADE_DISPLAY_NAMES: Record<string, string> = {
+  foundation: 'Foundation',
+  framing: 'Framing & Structure',
+  roofing: 'Roofing',
+  electrical: 'Electrical',
+  plumbing: 'Plumbing',
+  hvac: 'HVAC (Heating/Cooling)',
+  drywall: 'Drywall & Finishing',
+  flooring: 'Flooring',
+  painting: 'Painting'
+};
+
+// Result from a trade estimate calculation
+interface TradeEstimateResult {
+  breakdown: string;
+  cost: number;
+  savings: number;
+}
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
@@ -793,19 +814,87 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
     // For other business types, use AI if available, otherwise use mock responses
     let defaultResponse: string = "Analysis completed. Optimization recommendations generated based on your business data.";
     let useAI = false;
+    let tradesBreakdown: TradeEstimate[] = [];
+
+    // Helper function to extract cost/savings from estimate text
+    const extractCostFromEstimate = (text: string): { cost: number; savings: number } => {
+      const costMatch = text.match(/\*\*Total.*?Cost\*\*:\s*\$([\d,]+)/i) ||
+                        text.match(/Total.*Cost.*\$([\d,]+)/i);
+      const savingsMatch = text.match(/\*\*Potential Savings\*\*:\s*\$([\d,]+)/i) ||
+                          text.match(/Potential Savings.*\$([\d,]+)/i);
+      return {
+        cost: costMatch ? parseInt(costMatch[1].replace(/,/g, '')) : 0,
+        savings: savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0
+      };
+    };
 
     // Construction estimates: use our calculation system, then enhance with AI if available
     if (businessType === 'construction' && optimizationType === 'estimate') {
-      // If a specific trade is selected, generate trade-specific estimate
+      // If trade is 'construction' (full construction), generate ALL trade estimates separately
       let baseResponse: string;
-      if (trade && trade !== '') {
+
+      if (trade === 'construction') {
+        // Full construction - generate each trade estimate separately for individual purchase
+        const tradesList: string[] = ['foundation', 'framing', 'roofing', 'electrical', 'plumbing', 'hvac', 'drywall', 'flooring', 'painting'];
+
+        for (const tradeName of tradesList) {
+          const tradeEstimate = generateTradeSpecificEstimate(prompt || '', tradeName);
+          const { cost, savings } = extractCostFromEstimate(tradeEstimate);
+
+          tradesBreakdown.push({
+            trade: tradeName,
+            tradeName: TRADE_DISPLAY_NAMES[tradeName] || tradeName,
+            cost,
+            savings,
+            optimizedCost: cost - savings,
+            breakdown: tradeEstimate,
+            selected: true // Default all trades selected for full construction
+          });
+        }
+
+        // Generate summary for full construction
+        const totalCostAllTrades = tradesBreakdown.reduce((sum, t) => sum + t.cost, 0);
+        const totalSavingsAllTrades = tradesBreakdown.reduce((sum, t) => sum + t.savings, 0);
+
+        baseResponse = `# Full Construction Estimate - Trade Breakdown
+
+## Project Overview
+This estimate breaks down all construction trades for individual pricing. You can select which trades you need.
+
+## Trade-by-Trade Costs
+
+| Trade | Cost | Potential Savings | Optimized Cost |
+|-------|------|-------------------|----------------|
+${tradesBreakdown.map(t => `| ${t.tradeName} | $${t.cost.toLocaleString()} | $${t.savings.toLocaleString()} | $${t.optimizedCost.toLocaleString()} |`).join('\n')}
+
+## Project Totals
+- **Total Project Cost**: $${totalCostAllTrades.toLocaleString()} CAD
+- **Total Potential Savings**: $${totalSavingsAllTrades.toLocaleString()}
+- **Optimized Total**: $${(totalCostAllTrades - totalSavingsAllTrades).toLocaleString()}
+
+---
+
+*Select individual trades below to customize your quote. Each trade can be purchased separately.*`;
+
+      } else if (trade && trade !== '') {
+        // Single trade selected - generate just that trade
         baseResponse = generateTradeSpecificEstimate(prompt || '', trade);
+        const { cost, savings } = extractCostFromEstimate(baseResponse);
+        tradesBreakdown.push({
+          trade,
+          tradeName: TRADE_DISPLAY_NAMES[trade] || trade,
+          cost,
+          savings,
+          optimizedCost: cost - savings,
+          breakdown: baseResponse,
+          selected: true
+        });
       } else {
-        // Otherwise, generate full construction estimate
+        // No trade selected - generate combined estimate (legacy behavior)
         const businessResponses = mockResponses[businessType as keyof typeof mockResponses];
-        baseResponse = (businessResponses && optimizationType in businessResponses 
-          ? (businessResponses as any)[optimizationType] 
-          : null) || 
+        baseResponse = (businessResponses && optimizationType in businessResponses
+          ? (businessResponses as any)[optimizationType]
+          : null) ||
           defaultResponse;
       }
       
@@ -942,9 +1031,18 @@ Format your response with clear sections for each agent's findings.`;
                           defaultResponse.match(/Total.*Cost.*\$([\d,]+)/i);
     const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/) ||
                         defaultResponse.match(/Total.*Savings.*\$([\d,]+)/i);
-    
-    const totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
-    const estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
+
+    // Calculate totals from trades breakdown if available, otherwise from response text
+    let totalCost: number;
+    let estimatedSavings: number;
+
+    if (tradesBreakdown.length > 0) {
+      totalCost = tradesBreakdown.reduce((sum, t) => sum + t.cost, 0);
+      estimatedSavings = tradesBreakdown.reduce((sum, t) => sum + t.savings, 0);
+    } else {
+      totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
+      estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
+    }
 
     return NextResponse.json({
       success: true,
@@ -953,7 +1051,10 @@ Format your response with clear sections for each agent's findings.`;
       totalCost,
       businessType,
       optimizationType,
-      aiGenerated: useAI
+      aiGenerated: useAI,
+      // Include trade breakdown for full construction or single trade estimates
+      trades: tradesBreakdown.length > 0 ? tradesBreakdown : undefined,
+      isFullConstruction: trade === 'construction'
     });
 
   } catch (error) {

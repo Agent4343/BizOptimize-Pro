@@ -12,7 +12,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TradeSpecificFields } from "@/components/construction/TradeSpecificFields";
 import { ConversationFlow } from "@/components/construction/ConversationFlow";
 import { EstimateResults } from "@/components/construction/EstimateResults";
-import type { ConstructionFormData, BasicInfo, ConversationMessage } from "@/lib/construction-types";
+import type { ConstructionFormData, BasicInfo, ConversationMessage, TradeEstimate } from "@/lib/construction-types";
 import Link from "next/link";
 
 // Helper function to get trade-specific prompt
@@ -92,6 +92,8 @@ function ConstructionPageContent() {
   const [savings, setSavings] = useState<number>(0);
   const [selectedTrade, setSelectedTrade] = useState<string>(searchParams?.get('trade') || "");
   const [hasAccess, setHasAccess] = useState<boolean>(false);
+  const [trades, setTrades] = useState<TradeEstimate[]>([]);
+  const [isFullConstruction, setIsFullConstruction] = useState<boolean>(false);
   
   // Conversational flow state
   const [conversationMode, setConversationMode] = useState(false);
@@ -232,6 +234,8 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
         setResult(data.result);
         setTotalCost(data.totalCost || 0);
         setSavings(data.estimatedSavings || 0);
+        setTrades(data.trades || []);
+        setIsFullConstruction(data.isFullConstruction || false);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -340,6 +344,8 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
         setResult(data.result);
         setTotalCost(data.totalCost || 0);
         setSavings(data.estimatedSavings || 0);
+        setTrades(data.trades || []);
+        setIsFullConstruction(data.isFullConstruction || false);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -723,54 +729,20 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
           </Card>
 
           {/* Results */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {selectedTrade 
-                  ? `${selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Estimate Results`
-                  : 'Estimate Results'}
-              </CardTitle>
-              <CardDescription>
-                {selectedTrade 
-                  ? `AI-generated ${selectedTrade} estimate with cost optimization and code compliance`
-                  : 'AI-generated construction estimate with cost optimization'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {result ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {totalCost > 0 ? `$${totalCost.toLocaleString()}` : 'Calculating...'}
-                      </div>
-                      <div className="text-sm text-gray-600">Total Project Cost</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {savings > 0 ? `$${savings.toLocaleString()}` : 'Calculating...'}
-                      </div>
-                      <div className="text-sm text-gray-600">Potential Savings</div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-auto">
-                    <pre className="text-xs whitespace-pre-wrap">{result}</pre>
-                  </div>
-                  <Button variant="outline" className="w-full">
-                    📄 Export Estimate
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🏗️</div>
-                  <h3 className="text-lg font-semibold mb-2">Ready to Generate Estimate</h3>
-                  <p className="text-gray-600">
-                    Fill out the project details to generate a detailed construction estimate with complete line-item breakdowns for all trades.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <EstimateResults
+            selectedTrade={selectedTrade}
+            result={result}
+            totalCost={totalCost}
+            savings={savings}
+            trades={trades}
+            isFullConstruction={isFullConstruction}
+            projectDetails={{
+              projectType: formData.projectType,
+              location: formData.location,
+              squareFootage: formData.squareFootage,
+              province: formData.province
+            }}
+          />
         </div>
       </div>
     </div>
