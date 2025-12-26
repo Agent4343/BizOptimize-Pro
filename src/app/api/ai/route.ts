@@ -4,6 +4,7 @@ import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
 import { sanitizeForPrompt, sanitizeProvince, sanitizeTrade, sanitizeProjectType } from '@/lib/sanitize';
 import { TradeEstimate, ALL_TRADES } from '@/lib/construction-types';
+import { getValidationPrompt, generateValidationUserPrompt, SAFE_CODE_LANGUAGE } from '@/lib/validation-prompts';
 
 // Trade name mapping for display
 const TRADE_DISPLAY_NAMES: Record<string, string> = {
@@ -898,58 +899,36 @@ ${tradesBreakdown.map(t => `| ${t.tradeName} | $${t.cost.toLocaleString()} | $${
           defaultResponse;
       }
       
-      // If AI is available, enhance the estimate with compliance agents
+      // If AI is available, validate and enhance the estimate
       const hasOpenAI = !!process.env.OPENAI_API_KEY;
       const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-      
+
       if ((hasOpenRouter || hasOpenAI) && prompt) {
         try {
           useAI = true;
-          
+
           // Extract province from prompt or use provided value
           const locationMatch = prompt.match(/Location:\s*(.+?)(?:\n|$)/i);
           const provinceMatch = prompt.match(/Province:\s*(.+?)(?:\n|$)/i);
+          const sqftMatch = prompt.match(/Square Footage:\s*(\d+)/i);
+          const projectTypeMatch = prompt.match(/Project Type:\s*(.+?)(?:\n|$)/i);
+
           const extractedLocationForAI: string = locationMatch ? locationMatch[1].trim() : (location || '');
           const providedProvinceForAI: string = province || (provinceMatch ? provinceMatch[1].trim() : '');
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
-          
-          // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
+          const sqftForAI: string = sqftMatch ? sqftMatch[1] : '';
+          const projectTypeForAI: string = projectTypeMatch ? projectTypeMatch[1].trim() : '';
 
-1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
-   - Verify all trades comply with ${finalProvinceForAI} building codes
-   - Check electrical code (CEC), plumbing code, fire code
-   - Ensure structural requirements are met
-   - Validate permit requirements
+          // Use trade-specific validation prompt from our validation system
+          const aiSystemPrompt = getValidationPrompt(trade || 'electrical');
 
-2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
-   - Verify labor rates are current for ${finalProvinceForAI} market
-   - Validate material costs against ${finalProvinceForAI} market rates
-   - Check if pricing aligns with industry standards
-   - Flag any unusually high or low costs
-
-3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
-   - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
-   - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements, especially fire separation for detached structures
-
-IMPORTANT NOTES:
-- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
-- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
-
-Review the provided estimate and provide:
-- Code compliance verification for ${finalProvinceForAI}
-- Pricing validation against ${finalProvinceForAI} market rates
-- Trade-specific code references
-- Any compliance issues or missing requirements
-- Recommended adjustments for accuracy
-
-Format your response with clear sections for each agent's findings.`;
-          
-          // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
+          // Generate validation user prompt
+          const enhancedPrompt = generateValidationUserPrompt(baseResponse, {
+            projectType: projectTypeForAI,
+            location: extractedLocationForAI,
+            province: finalProvinceForAI,
+            squareFootage: sqftForAI,
+          });
           
           let aiEnhancement = '';
           if (hasOpenRouter) {
@@ -958,8 +937,8 @@ Format your response with clear sections for each agent's findings.`;
             aiEnhancement = await callOpenAI(enhancedPrompt, aiSystemPrompt);
           }
           
-          // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
+          // Combine base estimate with AI validation results
+          defaultResponse = baseResponse + `\n\n---\n\n## Estimate Validation & Compliance Check (${finalProvinceForAI})\n\n` + aiEnhancement + `\n\n---\n\n**Code Compliance Note:** ${SAFE_CODE_LANGUAGE.allowed[0]}`;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
