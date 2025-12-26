@@ -129,28 +129,67 @@ export async function POST(request: NextRequest) {
       const tradeCalculators: Record<string, (prompt: string) => string> = {
         electrical: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
-          
-          // Extract values with better regex patterns and validation
+
+          // Extract square footage for calculations
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
+          // Calculate expected electrical requirements based on sq ft and CEC guidelines
+          // Garage: simpler layout, perimeter outlets, basic lighting
+          // House: CEC requires outlets within 1.8m of any point, more circuits
+          const calculateExpectedElectrical = (sqft: number, isGarage: boolean) => {
+            if (isGarage) {
+              // Garage calculations:
+              // - Circuits: 1 lighting + 1 per 100 sq ft for outlets + 1-2 dedicated (door opener, heater, EV)
+              // - Outlets: perimeter spacing ~8ft apart, roughly 1 per 60 sq ft
+              // - Switches: 1-2 for main lighting zones
+              const baseCircuits = 2; // lighting + general
+              const additionalCircuits = Math.ceil(sqft / 150); // 1 per 150 sq ft
+              const dedicatedCircuits = sqft >= 400 ? 2 : 1; // EV prep, heater for larger garages
+
+              return {
+                circuits: Math.min(baseCircuits + additionalCircuits + dedicatedCircuits, 15),
+                outlets: Math.max(4, Math.min(Math.ceil(sqft / 60), 20)), // 1 per 60 sq ft, min 4, max 20
+                switches: Math.max(2, Math.min(Math.ceil(sqft / 200), 6)), // 1 per 200 sq ft, min 2
+                panel: sqft >= 800 ? 150 : 100 // Larger garages may need 150A
+              };
+            } else {
+              // House calculations (CEC compliance):
+              // - General circuits: 1 per 75 sq ft
+              // - Dedicated circuits: kitchen (2), laundry, bathroom, HVAC, etc.
+              // - Outlets: CEC requires within 1.8m of any wall point, roughly 1 per 35 sq ft
+              // - Switches: 1 per 80 sq ft (room-based zones)
+              const generalCircuits = Math.ceil(sqft / 75);
+              const dedicatedCircuits = 8; // kitchen x2, laundry, bathroom, HVAC, water heater, dryer, range
+
+              return {
+                circuits: Math.min(generalCircuits + dedicatedCircuits, 50),
+                outlets: Math.max(15, Math.min(Math.ceil(sqft / 35), 100)), // 1 per 35 sq ft
+                switches: Math.max(8, Math.min(Math.ceil(sqft / 80), 40)), // 1 per 80 sq ft
+                panel: sqft >= 2500 ? 200 : (sqft >= 1500 ? 150 : 100)
+              };
+            }
+          };
+
+          const expected = calculateExpectedElectrical(sqft, isGarage);
+
+          // Extract user-specified values with regex patterns
           const panelMatch = prompt.match(/(?:Panel|Main Panel).*?(\d+)\s*(?:amp|amps|A)/i);
           const circuitsMatch = prompt.match(/(?:Circuits|Number of Circuits).*?(\d+)/i);
-          // More specific outlet matching - avoid matching voltage (240V) or other numbers
           const outletsMatch = prompt.match(/(?:Outlets|Number of Outlets|Electrical Outlets).*?(\d+)(?!\s*(?:V|volt|amp|amps|A|sq|ft|feet))/i);
           const switchesMatch = prompt.match(/(?:Switches|Number of Switches|Light Switches).*?(\d+)/i);
-          
-          // Default values adjusted for garage vs house
-          let panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
-          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
-          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
-          let switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
-          
-          // Validation and sanity checks
-          if (panelSize < 60 || panelSize > 400) panelSize = isGarage ? 100 : 200;
-          if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
-          if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
-          if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
-          
-          // No artificial caps on outlets - trust user's specified values
-          // Users know their project requirements (workshops, EV chargers, etc.)
+
+          // Use user values if provided, otherwise use calculated expected values
+          let panelSize = panelMatch ? parseInt(panelMatch[1]) : expected.panel;
+          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : expected.circuits;
+          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : expected.outlets;
+          let switches = switchesMatch ? parseInt(switchesMatch[1]) : expected.switches;
+
+          // Validation: ensure values are within reasonable bounds
+          if (panelSize < 60 || panelSize > 400) panelSize = expected.panel;
+          if (circuits < 1 || circuits > 100) circuits = expected.circuits;
+          if (outlets < 0 || outlets > 200) outlets = expected.outlets;
+          if (switches < 0 || switches > 100) switches = expected.switches;
 
           // Electrical pricing (CAD) - garage vs house rates
           // Garage work is typically simpler: shorter runs, less complexity
@@ -178,16 +217,30 @@ export async function POST(request: NextRequest) {
           // Potential savings: 5% is realistic for electrical (regulated trade with limited discount options)
           const potentialSavings = Math.round(totalCost * 0.05);
           
+          // Check if user values differ significantly from expected
+          const userSpecified = circuitsMatch || outletsMatch || switchesMatch;
+          const circuitsDiff = circuits !== expected.circuits;
+          const outletsDiff = outlets !== expected.outlets;
+
           return `# Electrical Estimate
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
-- **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Outlets**: ${outlets}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Switches**: ${switches}${isGarage ? ' (Appropriate for garage)' : ''}
+- **Square Footage**: ${sqft.toLocaleString()} sq ft
+
+## Electrical Specifications
+| Component | Your Spec | CEC Expected* |
+|-----------|-----------|---------------|
+| Panel Size | ${panelSize}A | ${expected.panel}A |
+| Circuits | ${circuits} | ${expected.circuits} |
+| Outlets | ${outlets} | ${expected.outlets} |
+| Switches | ${switches} | ${expected.switches} |
+
+*CEC Expected: Based on ${sqft} sq ft ${isGarage ? 'garage' : 'house'} per Canadian Electrical Code guidelines${userSpecified && (circuitsDiff || outletsDiff) ? `
+
+**Note**: Your specifications differ from typical requirements. ${circuits > expected.circuits ? 'Higher circuit count may indicate workshop/heavy use.' : ''} ${outlets > expected.outlets ? 'Higher outlet count suitable for workshops with many tools.' : ''}` : ''}
 
 ## Detailed Cost Breakdown
 
