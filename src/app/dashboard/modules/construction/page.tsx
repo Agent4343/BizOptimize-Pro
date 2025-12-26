@@ -538,7 +538,6 @@ function ConstructionPageContent() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
   const [totalCost, setTotalCost] = useState<number>(0);
-  const [savings, setSavings] = useState<number>(0);
   const [selectedTrade, setSelectedTrade] = useState<string>(searchParams?.get('trade') || "");
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   
@@ -680,7 +679,6 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
       if (data.success) {
         setResult(data.result);
         setTotalCost(data.totalCost || 0);
-        setSavings(data.estimatedSavings || 0);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -777,7 +775,6 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
       if (data.success) {
         setResult(data.result);
         setTotalCost(data.totalCost || 0);
-        setSavings(data.estimatedSavings || 0);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -1168,19 +1165,11 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
             <CardContent>
               {result ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {totalCost > 0 ? `$${totalCost.toLocaleString()}` : 'Calculating...'}
-                      </div>
-                      <div className="text-sm text-gray-600">Total Project Cost</div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {totalCost > 0 ? `$${totalCost.toLocaleString()}` : 'Calculating...'}
                     </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {savings > 0 ? `$${savings.toLocaleString()}` : 'Calculating...'}
-                      </div>
-                      <div className="text-sm text-gray-600">Potential Savings</div>
-                    </div>
+                    <div className="text-sm text-gray-600">Total Project Cost</div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-auto">
                     <pre className="text-xs whitespace-pre-wrap">{result}</pre>

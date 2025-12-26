@@ -85,6 +85,39 @@ async function callOpenRouter(prompt: string, systemPrompt: string, functions?: 
   return data.choices[0]?.message?.content || '';
 }
 
+// Helper function to call Anthropic API directly
+async function callAnthropic(prompt: string, systemPrompt: string) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY not configured');
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Anthropic API error');
+  }
+
+  const data = await response.json();
+  return data.content[0]?.text || '';
+}
+
 // Helper to extract province from location (backward compatible)
 function extractProvince(location: string): string {
   return extractProvinceEnhanced(location).province;
@@ -780,10 +813,11 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       }
       
       // If AI is available, enhance the estimate with compliance agents
+      const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
       const hasOpenAI = !!process.env.OPENAI_API_KEY;
       const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-      
-      if ((hasOpenRouter || hasOpenAI) && prompt) {
+
+      if ((hasAnthropic || hasOpenRouter || hasOpenAI) && prompt) {
         try {
           useAI = true;
           
@@ -833,7 +867,9 @@ Format your response with clear sections for each agent's findings.`;
           const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
           
           let aiEnhancement = '';
-          if (hasOpenRouter) {
+          if (hasAnthropic) {
+            aiEnhancement = await callAnthropic(enhancedPrompt, aiSystemPrompt);
+          } else if (hasOpenRouter) {
             aiEnhancement = await callOpenRouter(enhancedPrompt, aiSystemPrompt);
           } else {
             aiEnhancement = await callOpenAI(enhancedPrompt, aiSystemPrompt);
@@ -853,10 +889,11 @@ Format your response with clear sections for each agent's findings.`;
       }
     } else {
       // For other business types, try AI if available
+      const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
       const hasOpenAI = !!process.env.OPENAI_API_KEY;
       const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
 
-      if (hasOpenRouter || hasOpenAI) {
+      if (hasAnthropic || hasOpenRouter || hasOpenAI) {
         try {
           useAI = true;
           // Build system prompt based on business type
@@ -884,8 +921,10 @@ Format your response with clear sections for each agent's findings.`;
           const systemPrompt = systemPrompts[businessType]?.[optimizationType] || 
             'You are a business optimization expert. Generate detailed analysis and recommendations in markdown format with specific numbers, not ranges.';
 
-          // Use OpenRouter if available, otherwise OpenAI
-          if (hasOpenRouter) {
+          // Use Anthropic if available, then OpenRouter, then OpenAI
+          if (hasAnthropic) {
+            defaultResponse = await callAnthropic(prompt, systemPrompt);
+          } else if (hasOpenRouter) {
             defaultResponse = await callOpenRouter(prompt, systemPrompt);
           } else {
             defaultResponse = await callOpenAI(prompt, systemPrompt);
@@ -907,19 +946,15 @@ Format your response with clear sections for each agent's findings.`;
       }
     }
 
-    // Extract cost and savings amounts from response
+    // Extract cost from response
     const totalCostMatch = defaultResponse.match(/\*\*Total Project Cost\*\*: \$([\d,]+)/) ||
                           defaultResponse.match(/Total.*Cost.*\$([\d,]+)/i);
-    const savingsMatch = defaultResponse.match(/\*\*Total Potential Savings\*\*: \$([\d,]+)/) ||
-                        defaultResponse.match(/Total.*Savings.*\$([\d,]+)/i);
-    
+
     const totalCost = totalCostMatch ? parseInt(totalCostMatch[1].replace(/,/g, '')) : 0;
-    const estimatedSavings = savingsMatch ? parseInt(savingsMatch[1].replace(/,/g, '')) : 0;
 
     return NextResponse.json({
       success: true,
       result: defaultResponse,
-      estimatedSavings,
       totalCost,
       businessType,
       optimizationType,
