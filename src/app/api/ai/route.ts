@@ -149,25 +149,23 @@ export async function POST(request: NextRequest) {
           if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
           if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
           
-          // Sanity check: for garages, validate outlets based on size but allow user specifications
-          // Modern garages with workshops need more outlets - allow up to 1 per 25 sq ft
-          if (isGarage) {
-            const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
-            const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 600;
-            const maxReasonableOutlets = Math.ceil(sqft / 25); // 1 per 25 sq ft for workshop garages
-            // Only cap if user input seems unreasonable, allow up to 30 for large workshop garages
-            if (outlets > maxReasonableOutlets && outlets > 30) {
-              outlets = Math.max(maxReasonableOutlets, 30);
-            }
-          }
-          
-          // Electrical pricing (CAD) - adjusted for garage
+          // No artificial caps on outlets - trust user's specified values
+          // Users know their project requirements (workshops, EV chargers, etc.)
+
+          // Electrical pricing (CAD) - garage vs house rates
+          // Garage work is typically simpler: shorter runs, less complexity
           const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
-          const circuitCost = circuits * 150;
-          const outletCost = outlets * 85;
+          // Circuit cost: $110/circuit for garages (simpler routing), $150 for houses
+          const circuitRate = isGarage ? 110 : 150;
+          const circuitCost = circuits * circuitRate;
+          // Outlet cost: $65/outlet for garages (surface mount common), $85 for houses
+          const outletRate = isGarage ? 65 : 85;
+          const outletCost = outlets * outletRate;
           const switchCost = switches * 65;
-          // Wire cost: $45/circuit (includes 50ft avg run + materials) + $30/outlet (includes box, wire run)
-          const wireCost = (circuits * 45) + (outlets * 30);
+          // Wire cost: garage uses shorter runs, less labor
+          const wireRate = isGarage ? 35 : 45;
+          const outletWireRate = isGarage ? 20 : 30;
+          const wireCost = (circuits * wireRate) + (outlets * outletWireRate);
           const permitCost = isGarage ? 250 : 350; // Lower permit cost for garages
           const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
           // Contractor overhead (20%) on all costs including permits/inspections
@@ -195,8 +193,8 @@ export async function POST(request: NextRequest) {
 
 ### Electrical Components
 - **Main Panel Installation**: $${panelInstall.toLocaleString()}
-- **Circuit Installation** (${circuits} circuits @ $150): $${circuitCost.toLocaleString()}
-- **Outlet Installation** (${outlets} outlets @ $85): $${outletCost.toLocaleString()}
+- **Circuit Installation** (${circuits} circuits @ $${circuitRate}): $${circuitCost.toLocaleString()}
+- **Outlet Installation** (${outlets} outlets @ $${outletRate}): $${outletCost.toLocaleString()}
 - **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
 - **Wiring & Materials**: $${wireCost.toLocaleString()}
 

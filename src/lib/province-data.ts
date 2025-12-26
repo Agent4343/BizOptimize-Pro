@@ -14,7 +14,7 @@ export const PROVINCE_DATA: Record<string, ProvinceData> = {
     cities: [
       "st. john's", "st john's", "st. johns", "st johns",
       "corner brook", "grand falls-windsor", "mount pearl",
-      "conception bay south", "happy valley-goose bay", "labrador city"
+      "conception bay south", "cbs", "happy valley-goose bay", "labrador city"
     ],
     costMultiplier: 1.05, // Slightly higher due to remote location
   },
