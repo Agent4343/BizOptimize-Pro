@@ -131,30 +131,53 @@ export const PROVINCE_DATA: Record<string, ProvinceData> = {
 // Enhanced province extraction with city matching
 export function extractProvinceEnhanced(location: string): { province: string; costMultiplier: number } {
   const locationLower = location.toLowerCase().trim();
-  
-  // First, try direct province code/name matching
+
+  // First, check for exact province name match (highest priority)
   for (const [provinceName, data] of Object.entries(PROVINCE_DATA)) {
-    // Check province code
-    if (locationLower.includes(data.code.toLowerCase())) {
+    if (locationLower === provinceName.toLowerCase()) {
       return { province: provinceName, costMultiplier: data.costMultiplier };
     }
-    
-    // Check province name variations
-    const nameParts = provinceName.toLowerCase().split(' ');
-    if (nameParts.some(part => locationLower.includes(part))) {
+  }
+
+  // Second, check for province code with word boundary (e.g., "ON" but not "london")
+  for (const [provinceName, data] of Object.entries(PROVINCE_DATA)) {
+    // Use word boundary regex to match province codes
+    const codePattern = new RegExp(`\\b${data.code}\\b`, 'i');
+    if (codePattern.test(location)) {
       return { province: provinceName, costMultiplier: data.costMultiplier };
     }
-    
-    // Check cities
+  }
+
+  // Third, check for city matches (most common case)
+  for (const [provinceName, data] of Object.entries(PROVINCE_DATA)) {
     for (const city of data.cities) {
-      if (locationLower.includes(city)) {
+      // Use word boundary for city matching to avoid partial matches
+      const cityPattern = new RegExp(`\\b${escapeRegExp(city)}\\b`, 'i');
+      if (cityPattern.test(location)) {
         return { province: provinceName, costMultiplier: data.costMultiplier };
       }
     }
   }
-  
+
+  // Fourth, check for province name parts (e.g., "British Columbia" matches "british")
+  for (const [provinceName, data] of Object.entries(PROVINCE_DATA)) {
+    // Only match significant parts (length > 3) to avoid false positives
+    const nameParts = provinceName.toLowerCase().split(' ').filter(part => part.length > 3);
+    if (nameParts.some(part => {
+      const partPattern = new RegExp(`\\b${escapeRegExp(part)}\\b`, 'i');
+      return partPattern.test(location);
+    })) {
+      return { province: provinceName, costMultiplier: data.costMultiplier };
+    }
+  }
+
   // Fallback: return Canada average
   return { province: 'Canada', costMultiplier: 1.0 };
+}
+
+// Helper to escape special regex characters
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Get province-specific cost adjustment

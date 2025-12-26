@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
-import { validateEstimate } from '@/lib/validation';
 import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-codes';
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
+import { sanitizeForPrompt, sanitizeProvince, sanitizeTrade, sanitizeProjectType } from '@/lib/sanitize';
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
@@ -92,8 +93,37 @@ function extractProvince(location: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = checkRateLimit(`ai:${clientId}`, RATE_LIMITS.ai);
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter || 60),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
-    const { prompt, businessType, optimizationType, trade, province, location } = body;
+
+    // Sanitize all inputs
+    const prompt = sanitizeForPrompt(body.prompt || '');
+    const businessType = sanitizeForPrompt(body.businessType || '');
+    const optimizationType = sanitizeForPrompt(body.optimizationType || '');
+    const trade = sanitizeTrade(body.trade || '');
+    const province = sanitizeProvince(body.province || '');
+    const location = sanitizeForPrompt(body.location || '');
 
     // Generate trade-specific estimate
     const generateTradeSpecificEstimate = (promptText: string, tradeType: string) => {
