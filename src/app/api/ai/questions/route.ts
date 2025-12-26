@@ -69,6 +69,39 @@ async function callOpenRouter(prompt: string, systemPrompt: string) {
   return data.choices[0]?.message?.content || '';
 }
 
+// Helper function to call Anthropic API directly
+async function callAnthropic(prompt: string, systemPrompt: string) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY not configured');
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Anthropic API error');
+  }
+
+  const data = await response.json();
+  return data.content[0]?.text || '';
+}
+
 // Use enhanced province extraction
 function extractProvince(location: string): string {
   return extractProvinceEnhanced(location).province;
@@ -135,11 +168,14 @@ ${currentAnswer ? `\nUser just answered: ${currentAnswer}` : ''}
 What should I ask next, or are we ready to estimate?`;
 
     // Call AI to generate next question
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
 
     let aiResponse = '';
-    if (hasOpenRouter) {
+    if (hasAnthropic) {
+      aiResponse = await callAnthropic(userPrompt, systemPrompt);
+    } else if (hasOpenRouter) {
       aiResponse = await callOpenRouter(userPrompt, systemPrompt);
     } else if (hasOpenAI) {
       aiResponse = await callOpenAI(userPrompt, systemPrompt);
