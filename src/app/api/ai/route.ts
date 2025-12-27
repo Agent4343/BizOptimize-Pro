@@ -31,6 +31,9 @@ interface ContractorSettings {
 // Fetch contractor settings from database
 async function getContractorSettings(): Promise<ContractorSettings | null> {
   try {
+    // Return null if database is not configured
+    if (!prisma) return null;
+
     const contractor = await prisma.contractor.findFirst({
       include: {
         laborRates: true,

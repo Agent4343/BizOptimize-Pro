@@ -4,9 +4,14 @@ import prisma from '@/lib/prisma';
 // GET - Fetch contractor profile
 export async function GET() {
   try {
+    // Return null if database is not configured
+    if (!prisma) {
+      return NextResponse.json({ contractor: null, message: 'Database not configured' });
+    }
+
     // For now, get the first contractor (single-tenant)
     // In production, you'd use auth to get the current user's contractor
-    let contractor = await prisma.contractor.findFirst({
+    const contractor = await prisma.contractor.findFirst({
       include: {
         laborRates: true,
         materialMarkups: true,
@@ -32,6 +37,14 @@ export async function GET() {
 // POST - Create new contractor profile
 export async function POST(request: NextRequest) {
   try {
+    // Return error if database is not configured
+    if (!prisma) {
+      return NextResponse.json(
+        { error: 'Database not configured. Please set DATABASE_URL environment variable.' },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const {
       companyName,
@@ -107,6 +120,14 @@ export async function POST(request: NextRequest) {
 // PUT - Update contractor profile
 export async function PUT(request: NextRequest) {
   try {
+    // Return error if database is not configured
+    if (!prisma) {
+      return NextResponse.json(
+        { error: 'Database not configured. Please set DATABASE_URL environment variable.' },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { id, ...data } = body;
 

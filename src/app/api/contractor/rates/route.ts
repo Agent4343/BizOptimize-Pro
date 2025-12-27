@@ -4,6 +4,10 @@ import prisma from '@/lib/prisma';
 // GET - Fetch labor rates
 export async function GET() {
   try {
+    if (!prisma) {
+      return NextResponse.json({ rates: [], message: 'Database not configured' });
+    }
+
     const contractor = await prisma.contractor.findFirst();
 
     if (!contractor) {
@@ -27,6 +31,13 @@ export async function GET() {
 // PUT - Update labor rates
 export async function PUT(request: NextRequest) {
   try {
+    if (!prisma) {
+      return NextResponse.json(
+        { error: 'Database not configured. Please set DATABASE_URL environment variable.' },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { rates } = body;
 
