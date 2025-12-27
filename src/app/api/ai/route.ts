@@ -181,62 +181,78 @@ export async function POST(request: NextRequest) {
           if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
           if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
           if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
-          
+
+          // Get square footage for calculations
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
           // Additional sanity check: for garages, cap outlets at reasonable number based on size
-          // Typical: 1 outlet per 50-100 sq ft for garages
           if (isGarage) {
-            const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
-            const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 600;
             const maxReasonableOutlets = Math.ceil(sqft / 50); // 1 per 50 sq ft max
             if (outlets > maxReasonableOutlets) {
               outlets = Math.min(maxReasonableOutlets, 12); // Cap at 12 for garages
             }
           }
-          
-          // Electrical pricing (CAD) - adjusted for garage
+
+          // CEC Expected values based on project type and size
+          const cecExpectedPanel = isGarage ? 100 : 200;
+          const cecExpectedCircuits = isGarage ? Math.ceil(sqft / 75) : Math.ceil(sqft / 100);
+          const cecExpectedOutlets = isGarage ? Math.ceil(sqft / 60) : Math.ceil(sqft / 60);
+          const cecExpectedSwitches = isGarage ? Math.ceil(sqft / 200) : Math.ceil(sqft / 120);
+
+          // Electrical pricing (CAD) - industry standard rates
           const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
-          const circuitCost = circuits * 150;
-          const outletCost = outlets * 85;
+          const circuitCost = circuits * 110;
+          const outletCost = outlets * 65;
           const switchCost = switches * 65;
-          const wireCost = (circuits + outlets) * 25;
-          const permitCost = isGarage ? 250 : 350; // Lower permit cost for garages
-          const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
-          const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
-          
-          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+          const wireCost = Math.round(sqft * 1.05); // ~$1.05 per sq ft for wiring
+          const permitCost = isGarage ? 250 : 350;
+          const inspectionCost = isGarage ? 150 : 200;
+          const laborCost = Math.round((panelInstall + circuitCost + outletCost + switchCost) * 0.35);
+
+          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + laborCost;
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
-          
+
+          // Check if specs differ from CEC expected
+          const specsNote = (circuits !== cecExpectedCircuits || outlets !== cecExpectedOutlets || switches !== cecExpectedSwitches)
+            ? `\n\n**Note**: Your specifications differ from typical requirements. Higher circuit count may indicate workshop/heavy use.`
+            : '';
+
           return `# Electrical Estimate
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
-- **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Outlets**: ${outlets}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Switches**: ${switches}${isGarage ? ' (Appropriate for garage)' : ''}
+- **Square Footage**: ${sqft.toLocaleString()} sq ft
+
+## Electrical Specifications
+| Component | Your Spec | CEC Expected* |
+|-----------|-----------|---------------|
+| Panel Size | ${panelSize}A | ${cecExpectedPanel}A |
+| Circuits | ${circuits} | ${cecExpectedCircuits} |
+| Outlets | ${outlets} | ${cecExpectedOutlets} |
+| Switches | ${switches} | ${cecExpectedSwitches} |
+
+*CEC Expected: Based on ${sqft} sq ft ${isGarage ? 'garage' : 'home'} per Canadian Electrical Code guidelines${specsNote}
 
 ## Detailed Cost Breakdown
 
 ### Electrical Components
 - **Main Panel Installation**: $${panelInstall.toLocaleString()}
-- **Circuit Installation** (${circuits} circuits @ $150): $${circuitCost.toLocaleString()}
-- **Outlet Installation** (${outlets} outlets @ $85): $${outletCost.toLocaleString()}
+- **Circuit Installation** (${circuits} circuits @ $110): $${circuitCost.toLocaleString()}
+- **Outlet Installation** (${outlets} outlets @ $65): $${outletCost.toLocaleString()}
 - **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
 - **Wiring & Materials**: $${wireCost.toLocaleString()}
 
 ### Other Costs
 - **Permits**: $${permitCost.toLocaleString()}
 - **Inspections**: $${inspectionCost.toLocaleString()}
-- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+- **Labor (35%)**: $${laborCost.toLocaleString()}
 
 ## Summary
-- **Total Electrical Cost**: $${totalCost.toLocaleString()} CAD
-- **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+- **Total Project Cost**: $${totalCost.toLocaleString()} CAD
 
 ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         },
