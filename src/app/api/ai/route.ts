@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
 | **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
 | **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
 | **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hours |
-| **Travel** | ${travelHours} hr${travelHours !== 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
+| **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
 
 ### Work Breakdown Schedule
 
