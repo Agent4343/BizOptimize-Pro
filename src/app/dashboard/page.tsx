@@ -98,9 +98,11 @@ export default function DashboardPage() {
                   Manage Trades
                 </Button>
               </Link>
-              <Button variant="outline" size="sm">
-                Settings
-              </Button>
+              <Link href="/dashboard/admin">
+                <Button variant="outline" size="sm">
+                  Settings
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
