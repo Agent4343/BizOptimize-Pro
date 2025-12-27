@@ -1,0 +1,101 @@
+// Prisma schema for BizOptimize Pro - Contractor Admin System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Contractor company profile
+model Contractor {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Company Information
+  companyName       String
+  ownerName         String?
+  email             String   @unique
+  phone             String?
+  address           String?
+  city              String?
+  province          String?
+  postalCode        String?
+
+  // Licensing & Insurance
+  licenseNumber     String?
+  licenseExpiry     DateTime?
+  insuranceProvider String?
+  insuranceAmount   String?   // e.g., "$2M liability"
+  insuranceExpiry   DateTime?
+  wsibNumber        String?   // WSIB/WCB number
+
+  // Relations
+  laborRates        LaborRate[]
+  materialMarkups   MaterialMarkup[]
+  quoteSettings     QuoteSettings?
+}
+
+// Labor rates for different worker types
+model LaborRate {
+  id            String     @id @default(cuid())
+  contractorId  String
+  contractor    Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  workerType    String     // "journeyman", "apprentice", "helper", "foreman"
+  hourlyRate    Float      // $/hour
+  overtimeRate  Float?     // $/hour for overtime
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([contractorId, workerType])
+}
+
+// Material markup settings
+model MaterialMarkup {
+  id            String     @id @default(cuid())
+  contractorId  String
+  contractor    Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  category      String     // "electrical", "plumbing", "hvac", "general"
+  supplier      String?    // Preferred supplier name
+  markupPercent Float      // Markup percentage on materials
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([contractorId, category])
+}
+
+// Quote settings and preferences
+model QuoteSettings {
+  id               String     @id @default(cuid())
+  contractorId     String     @unique
+  contractor       Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  // Pricing
+  overheadPercent  Float      @default(15)  // Overhead & profit margin
+  travelRate       Float      @default(65)  // $/hour for travel
+  travelMinimum    Float      @default(0)   // Minimum travel charge
+
+  // Payment Terms
+  depositPercent   Float      @default(50)  // Deposit required
+  paymentTerms     String     @default("Balance due upon completion")
+
+  // Warranty
+  warrantyYears    Int        @default(1)
+  warrantyTerms    String?
+
+  // Quote Validity
+  quoteValidDays   Int        @default(30)
+
+  // Custom Terms
+  customTerms      String?    // Additional terms & conditions
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
