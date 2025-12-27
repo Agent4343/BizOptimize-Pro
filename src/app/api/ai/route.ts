@@ -2,6 +2,76 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
 import { validateEstimate } from '@/lib/validation';
 import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-codes';
+import prisma from '@/lib/prisma';
+
+// Interface for contractor settings
+interface ContractorSettings {
+  companyName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  licenseNumber: string;
+  insuranceProvider: string;
+  insuranceAmount: string;
+  journeymanRate: number;
+  apprenticeRate: number;
+  helperRate: number;
+  travelRate: number;
+  overheadPercent: number;
+  depositPercent: number;
+  paymentTerms: string;
+  warrantyYears: number;
+  warrantyTerms: string;
+  quoteValidDays: number;
+}
+
+// Fetch contractor settings from database
+async function getContractorSettings(): Promise<ContractorSettings | null> {
+  try {
+    const contractor = await prisma.contractor.findFirst({
+      include: {
+        laborRates: true,
+        quoteSettings: true,
+      },
+    });
+
+    if (!contractor) return null;
+
+    // Extract labor rates
+    const journeymanRate = contractor.laborRates.find(r => r.workerType === 'journeyman')?.hourlyRate || 85;
+    const apprenticeRate = contractor.laborRates.find(r => r.workerType === 'apprentice')?.hourlyRate || 45;
+    const helperRate = contractor.laborRates.find(r => r.workerType === 'helper')?.hourlyRate || 35;
+
+    return {
+      companyName: contractor.companyName,
+      email: contractor.email,
+      phone: contractor.phone || '',
+      address: contractor.address || '',
+      city: contractor.city || '',
+      province: contractor.province || '',
+      postalCode: contractor.postalCode || '',
+      licenseNumber: contractor.licenseNumber || '',
+      insuranceProvider: contractor.insuranceProvider || '',
+      insuranceAmount: contractor.insuranceAmount || '',
+      journeymanRate,
+      apprenticeRate,
+      helperRate,
+      travelRate: contractor.quoteSettings?.travelRate || 65,
+      overheadPercent: contractor.quoteSettings?.overheadPercent || 15,
+      depositPercent: contractor.quoteSettings?.depositPercent || 50,
+      paymentTerms: contractor.quoteSettings?.paymentTerms || 'Balance due upon completion',
+      warrantyYears: contractor.quoteSettings?.warrantyYears || 1,
+      warrantyTerms: contractor.quoteSettings?.warrantyTerms || '',
+      quoteValidDays: contractor.quoteSettings?.quoteValidDays || 30,
+    };
+  } catch (error) {
+    console.error('Error fetching contractor settings:', error);
+    return null;
+  }
+}
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
@@ -128,6 +198,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { prompt, businessType, optimizationType, trade, province, location } = body;
 
+    // Fetch contractor settings from database
+    const contractorSettings = await getContractorSettings();
+
     // Generate trade-specific estimate
     const generateTradeSpecificEstimate = (promptText: string, tradeType: string) => {
       // Extract location and province from prompt or use provided values
@@ -214,8 +287,10 @@ export async function POST(request: NextRequest) {
           const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours;
 
           // Crew size calculation (based on project complexity)
-          const journeymanRate = 85; // $/hour CAD
-          const apprenticeRate = 45; // $/hour CAD
+          // Use contractor settings if available, otherwise use defaults
+          const journeymanRate = contractorSettings?.journeymanRate || 85; // $/hour CAD
+          const apprenticeRate = contractorSettings?.apprenticeRate || 45; // $/hour CAD
+          const travelRate = contractorSettings?.travelRate || 65; // $/hour CAD
           const needsApprentice = totalLaborHours > 16 || circuits > 10;
           const crewSize = needsApprentice ? 2 : 1;
           const workHoursPerDay = 8;
@@ -225,7 +300,7 @@ export async function POST(request: NextRequest) {
           // Travel time estimate (based on location - simplified)
           const isRemote = /rural|remote|outside|country/i.test(locationValue);
           const travelHours = isRemote ? 2 : 0.5;
-          const travelCost = Math.round(travelHours * projectDays * 65); // Travel charge per day
+          const travelCost = Math.round(travelHours * projectDays * travelRate); // Travel charge per day
 
           // Labor cost breakdown
           const journeymanHours = totalLaborHours;
@@ -246,7 +321,8 @@ export async function POST(request: NextRequest) {
           // Other costs
           const permitCost = isGarage ? 250 : 350;
           const inspectionCost = isGarage ? 150 : 200;
-          const overhead = Math.round((totalLaborCost + totalMaterialCost) * 0.15); // 15% overhead/profit
+          const overheadPercent = contractorSettings?.overheadPercent || 15;
+          const overhead = Math.round((totalLaborCost + totalMaterialCost) * (overheadPercent / 100)); // overhead/profit
 
           let totalCost = totalLaborCost + totalMaterialCost + permitCost + inspectionCost + overhead;
           // Apply province-specific cost multiplier
@@ -282,10 +358,35 @@ export async function POST(request: NextRequest) {
           // Generate estimate number
           const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
           const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
-          const validUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const quoteValidDays = contractorSettings?.quoteValidDays || 30;
+          const validUntil = new Date(Date.now() + quoteValidDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+          // Get contractor info for header
+          const companyName = contractorSettings?.companyName || '';
+          const companyPhone = contractorSettings?.phone || '';
+          const companyEmail = contractorSettings?.email || '';
+          const companyAddress = contractorSettings ?
+            [contractorSettings.address, contractorSettings.city, contractorSettings.province, contractorSettings.postalCode]
+              .filter(Boolean).join(', ') : '';
+          const licenseNumber = contractorSettings?.licenseNumber || '';
+
+          // Get terms from contractor settings
+          const depositPercent = contractorSettings?.depositPercent || 50;
+          const paymentTerms = contractorSettings?.paymentTerms || 'Balance due upon completion and successful inspection';
+          const warrantyYears = contractorSettings?.warrantyYears || 1;
+          const warrantyTerms = contractorSettings?.warrantyTerms || 'Manufacturer warranties apply to all materials.';
+
+          // Build company header if contractor info is available
+          const companyHeader = companyName ? `
+${companyName}
+${companyAddress ? companyAddress + '\n' : ''}${companyPhone ? 'Phone: ' + companyPhone + ' | ' : ''}${companyEmail ? 'Email: ' + companyEmail : ''}
+${licenseNumber ? 'License: ' + licenseNumber : ''}
+
+---
+` : '';
 
           return `# ELECTRICAL ESTIMATE
-
+${companyHeader}
 **Estimate #:** ${estimateNum}
 **Date:** ${estimateDate}
 **Valid Until:** ${validUntil}
@@ -348,7 +449,7 @@ export async function POST(request: NextRequest) {
 |-------------|-------|------|--------|
 | Journeyman Electrician | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
 ${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |` : ''}
-| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $65.00/hr | $${travelCost.toLocaleString()}.00 |
+| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $${travelRate}.00/hr | $${travelCost.toLocaleString()}.00 |
 | **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
 
 ### B. Materials
@@ -375,7 +476,7 @@ ${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $
 
 | Item | Amount |
 |------|--------|
-| Contractor Overhead (15%) | $${overhead.toLocaleString()}.00 |
+| Contractor Overhead (${overheadPercent}%) | $${overhead.toLocaleString()}.00 |
 
 ---
 
@@ -394,20 +495,20 @@ ${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $
 
 ## Terms & Conditions
 
-1. **Payment Terms:** 50% deposit required to schedule work. Balance due upon completion and successful inspection.
-2. **Warranty:** 1-year workmanship warranty. Manufacturer warranties apply to all materials.
+1. **Payment Terms:** ${depositPercent}% deposit required to schedule work. ${paymentTerms}.
+2. **Warranty:** ${warrantyYears}-year workmanship warranty. ${warrantyTerms}
 3. **Permits:** All permits and inspections included in quote.
 4. **Changes:** Any changes to scope will be quoted separately.
 5. **Access:** Clear access to work area required. Additional charges may apply for obstructed access.
-6. **Validity:** This estimate is valid for 30 days from date of issue.
+6. **Validity:** This estimate is valid for ${quoteValidDays} days from date of issue.
 
 ---
 
 ## Contractor Requirements (${provinceValue})
 
 - Licensed Master Electrician supervision required
-- Valid electrical contractor license
-- Minimum $2M liability insurance
+- Valid electrical contractor license${licenseNumber ? ` (${licenseNumber})` : ''}
+- ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
 - WSIB/WCB coverage for all workers
 - ESA/Provincial inspection required before energization
 
