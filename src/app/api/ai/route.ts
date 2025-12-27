@@ -252,10 +252,32 @@ export async function POST(request: NextRequest) {
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
 
-          // Check if specs differ from CEC expected
-          const specsNote = (circuits !== cecExpectedCircuits || outlets !== cecExpectedOutlets || switches !== cecExpectedSwitches)
-            ? `\n\n**Note**: Your specifications differ from typical CEC requirements. Higher counts may indicate workshop/heavy use.`
-            : '';
+          // Check if specs differ from CEC expected and generate appropriate note
+          let specsNote = '';
+          const circuitsDiff = circuits - cecExpectedCircuits;
+          const outletsDiff = outlets - cecExpectedOutlets;
+          const switchesDiff = switches - cecExpectedSwitches;
+
+          if (circuitsDiff !== 0 || outletsDiff !== 0 || switchesDiff !== 0) {
+            const differences: string[] = [];
+            if (circuitsDiff > 0) differences.push(`+${circuitsDiff} circuits`);
+            if (circuitsDiff < 0) differences.push(`${circuitsDiff} circuits`);
+            if (outletsDiff > 0) differences.push(`+${outletsDiff} outlets`);
+            if (outletsDiff < 0) differences.push(`${outletsDiff} outlets`);
+            if (switchesDiff > 0) differences.push(`+${switchesDiff} switches`);
+            if (switchesDiff < 0) differences.push(`${switchesDiff} switches`);
+
+            const isHigher = circuitsDiff > 0 || outletsDiff > 0 || switchesDiff > 0;
+            const isLower = circuitsDiff < 0 || outletsDiff < 0 || switchesDiff < 0;
+
+            if (isHigher && !isLower) {
+              specsNote = `\n\n**Note**: Your specifications exceed CEC minimums (${differences.join(', ')}). This may indicate workshop/heavy use requirements.`;
+            } else if (isLower && !isHigher) {
+              specsNote = `\n\n**Note**: Your specifications are below CEC recommendations (${differences.join(', ')}). Consider increasing for code compliance and functionality.`;
+            } else {
+              specsNote = `\n\n**Note**: Your specifications differ from CEC recommendations (${differences.join(', ')}). Review for your specific needs.`;
+            }
+          }
 
           // Generate estimate number
           const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
