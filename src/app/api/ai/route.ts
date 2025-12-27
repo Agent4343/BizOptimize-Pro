@@ -254,84 +254,140 @@ export async function POST(request: NextRequest) {
 
           // Check if specs differ from CEC expected
           const specsNote = (circuits !== cecExpectedCircuits || outlets !== cecExpectedOutlets || switches !== cecExpectedSwitches)
-            ? `\n\n**Note**: Your specifications differ from typical requirements. Higher circuit count may indicate workshop/heavy use.`
+            ? `\n\n**Note**: Your specifications differ from typical CEC requirements. Higher counts may indicate workshop/heavy use.`
             : '';
 
-          return `# Electrical Estimate
+          // Generate estimate number
+          const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
+          const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const validUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
-## Project Details
-- **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${provinceValue}
-- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Square Footage**: ${sqft.toLocaleString()} sq ft
+          return `# ELECTRICAL ESTIMATE
+
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+**Valid Until:** ${validUntil}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Name** | ${isGarage ? 'Garage' : 'Residential'} Electrical Installation |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Project Type** | ${isGarage ? 'Detached Garage' : 'Residential Home'} |
+| **Square Footage** | ${sqft.toLocaleString()} sq ft |
+
+---
 
 ## Electrical Specifications
-| Component | Your Spec | CEC Expected* |
-|-----------|-----------|---------------|
-| Panel Size | ${panelSize}A | ${cecExpectedPanel}A |
-| Circuits | ${circuits} | ${cecExpectedCircuits} |
-| Outlets | ${outlets} | ${cecExpectedOutlets} |
-| Switches | ${switches} | ${cecExpectedSwitches} |
 
-*CEC Expected: Based on ${sqft} sq ft ${isGarage ? 'garage' : 'home'} per Canadian Electrical Code guidelines${specsNote}
+| Component | Quoted | CEC Minimum* |
+|-----------|--------|--------------|
+| Main Panel | ${panelSize}A | ${cecExpectedPanel}A |
+| Branch Circuits | ${circuits} | ${cecExpectedCircuits} |
+| Receptacle Outlets | ${outlets} | ${cecExpectedOutlets} |
+| Light Switches | ${switches} | ${cecExpectedSwitches} |
 
-## Crew & Timeline
+*Per Canadian Electrical Code (CEC) for ${sqft} sq ft ${isGarage ? 'garage' : 'dwelling'}${specsNote}
 
-| Detail | Estimate |
-|--------|----------|
-| **Crew Size** | ${crewSize} (${needsApprentice ? '1 Journeyman + 1 Apprentice' : '1 Journeyman'}) |
-| **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hrs |
-| **Project Duration** | ${projectDays} day${projectDays > 1 ? 's' : ''} |
-| **Travel Time** | ${travelHours} hr${travelHours > 1 ? 's' : ''}/day${isRemote ? ' (remote location)' : ''} |
+---
 
-### Labor Hours Breakdown
-| Task | Hours |
-|------|-------|
-| Panel Installation | ${panelHours} hrs |
-| Circuit Rough-in (${circuits} circuits) | ${totalCircuitHours} hrs |
-| Outlet Installation (${outlets} outlets) | ${totalOutletHours} hrs |
-| Switch Installation (${switches} switches) | ${totalSwitchHours} hrs |
-| Wiring & Rough-in | ${totalWiringHours} hrs |
-| **Total** | **${totalLaborHours.toFixed(1)} hrs** |
+## Crew Assignment & Schedule
 
-## Detailed Cost Breakdown
+| | Details |
+|---|---------|
+| **Lead Electrician** | Licensed Journeyman (Red Seal) |
+| **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
+| **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
+| **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hours |
+| **Travel** | ${travelHours} hr${travelHours !== 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
 
-### Labor Costs
-| Role | Hours | Rate | Cost |
-|------|-------|------|------|
-| Journeyman Electrician | ${journeymanHours.toFixed(1)} | $${journeymanRate}/hr | $${journeymanCost.toLocaleString()} |
-${needsApprentice ? `| Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}/hr | $${apprenticeCost.toLocaleString()} |` : ''}
-| Travel (${projectDays} day${projectDays > 1 ? 's' : ''}) | ${(travelHours * projectDays).toFixed(1)} | $65/hr | $${travelCost.toLocaleString()} |
-| **Subtotal Labor** | | | **$${totalLaborCost.toLocaleString()}** |
+### Work Breakdown Schedule
 
-### Material Costs
-| Item | Cost |
-|------|------|
-| ${panelSize}A Panel & Breakers | $${panelMaterial.toLocaleString()} |
-| Circuit Materials (${circuits} circuits) | $${circuitMaterial.toLocaleString()} |
-| Outlets & Boxes (${outlets}) | $${outletMaterial.toLocaleString()} |
-| Switches & Boxes (${switches}) | $${switchMaterial.toLocaleString()} |
-| Wiring (Romex, connectors) | $${wireMaterial.toLocaleString()} |
-| Misc Supplies | $${miscMaterial.toLocaleString()} |
-| **Subtotal Materials** | **$${totalMaterialCost.toLocaleString()}** |
+| Phase | Task | Hours |
+|-------|------|-------|
+| 1 | Panel Installation & Main Feed | ${panelHours} hrs |
+| 2 | Circuit Rough-in (${circuits} circuits) | ${totalCircuitHours} hrs |
+| 3 | Receptacle Installation (${outlets} units) | ${totalOutletHours} hrs |
+| 4 | Switch Installation (${switches} units) | ${totalSwitchHours} hrs |
+| 5 | Wiring, Terminations & Testing | ${totalWiringHours} hrs |
+| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
 
-### Other Costs
-| Item | Cost |
-|------|------|
-| Permits | $${permitCost.toLocaleString()} |
-| Inspections | $${inspectionCost.toLocaleString()} |
-| Overhead & Profit (15%) | $${overhead.toLocaleString()} |
-| **Subtotal Other** | **$${(permitCost + inspectionCost + overhead).toLocaleString()}** |
+---
 
-## Summary
+## Cost Breakdown
+
+### A. Labor
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| Journeyman Electrician | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
+${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |` : ''}
+| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $65.00/hr | $${travelCost.toLocaleString()}.00 |
+| **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
+
+### B. Materials
+
+| Item | Qty | Amount |
+|------|-----|--------|
+| ${panelSize}A Main Panel w/ Breakers | 1 | $${panelMaterial.toLocaleString()}.00 |
+| Branch Circuit Materials | ${circuits} | $${circuitMaterial.toLocaleString()}.00 |
+| Receptacles, Boxes & Covers | ${outlets} | $${outletMaterial.toLocaleString()}.00 |
+| Switches, Boxes & Covers | ${switches} | $${switchMaterial.toLocaleString()}.00 |
+| NMD90 Wire & Connectors | - | $${wireMaterial.toLocaleString()}.00 |
+| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
+
+### C. Permits & Inspections
+
+| Item | Amount |
+|------|--------|
+| Electrical Permit | $${permitCost.toLocaleString()}.00 |
+| ESA Inspection Fee | $${inspectionCost.toLocaleString()}.00 |
+| **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
+
+### D. Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Contractor Overhead (15%) | $${overhead.toLocaleString()}.00 |
+
+---
+
+## ESTIMATE SUMMARY
 
 | Category | Amount |
-|----------|--------|
-| Labor | $${totalLaborCost.toLocaleString()} |
-| Materials | $${totalMaterialCost.toLocaleString()} |
-| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()} |
-| Overhead & Profit | $${overhead.toLocaleString()} |
-| **Total Project Cost** | **$${totalCost.toLocaleString()} CAD** |
+|----------|-------:|
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| Overhead & Profit | $${overhead.toLocaleString()}.00 |
+| | |
+| **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
+
+---
+
+## Terms & Conditions
+
+1. **Payment Terms:** 50% deposit required to schedule work. Balance due upon completion and successful inspection.
+2. **Warranty:** 1-year workmanship warranty. Manufacturer warranties apply to all materials.
+3. **Permits:** All permits and inspections included in quote.
+4. **Changes:** Any changes to scope will be quoted separately.
+5. **Access:** Clear access to work area required. Additional charges may apply for obstructed access.
+6. **Validity:** This estimate is valid for 30 days from date of issue.
+
+---
+
+## Contractor Requirements (${provinceValue})
+
+- Licensed Master Electrician supervision required
+- Valid electrical contractor license
+- Minimum $2M liability insurance
+- WSIB/WCB coverage for all workers
+- ESA/Provincial inspection required before energization
 
 ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         },

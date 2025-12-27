@@ -83,16 +83,39 @@ function getTradeSpecificPrompt(trade: string, formData: any): string {
 function renderTradeSpecificFields(trade: string, formData: any, setFormData: any) {
   const isGarage = formData.projectType === 'garage';
   const isHouse = formData.projectType === 'house';
-  
+  const sqft = parseInt(formData.squareFootage) || (isGarage ? 600 : 2000);
+
+  // CEC-based recommended values
+  const cecDefaults = {
+    garage: {
+      panel: 100,
+      circuits: Math.max(6, Math.ceil(sqft / 75)),
+      outlets: Math.max(4, Math.ceil(sqft / 60)),
+      switches: Math.max(2, Math.ceil(sqft / 200))
+    },
+    house: {
+      panel: 200,
+      circuits: Math.max(12, Math.ceil(sqft / 100)),
+      outlets: Math.max(15, Math.ceil(sqft / 60)),
+      switches: Math.max(8, Math.ceil(sqft / 120))
+    }
+  };
+  const defaults = isGarage ? cecDefaults.garage : cecDefaults.house;
+
   switch(trade.toLowerCase()) {
     case 'electrical':
       return (
         <div className="space-y-4">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+            <p className="text-sm text-blue-700">
+              <strong>CEC Recommended for {sqft} sq ft {isGarage ? 'garage' : 'home'}:</strong> {defaults.panel}A panel, {defaults.circuits} circuits, {defaults.outlets} outlets, {defaults.switches} switches
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Panel Size (Amps)</label>
               <Input
-                placeholder="200"
+                placeholder={String(defaults.panel)}
                 type="number"
                 value={formData.electricalPanelSize}
                 onChange={(e) => setFormData({...formData, electricalPanelSize: e.target.value})}
@@ -101,7 +124,7 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
             <div className="space-y-2">
               <label className="text-sm font-medium">Number of Circuits</label>
               <Input
-                placeholder="20"
+                placeholder={String(defaults.circuits)}
                 type="number"
                 value={formData.electricalCircuits}
                 onChange={(e) => setFormData({...formData, electricalCircuits: e.target.value})}
@@ -112,7 +135,7 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
             <div className="space-y-2">
               <label className="text-sm font-medium">Outlets</label>
               <Input
-                placeholder="30"
+                placeholder={String(defaults.outlets)}
                 type="number"
                 value={formData.electricalOutlets}
                 onChange={(e) => setFormData({...formData, electricalOutlets: e.target.value})}
@@ -121,7 +144,7 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
             <div className="space-y-2">
               <label className="text-sm font-medium">Switches</label>
               <Input
-                placeholder="15"
+                placeholder={String(defaults.switches)}
                 type="number"
                 value={formData.electricalSwitches}
                 onChange={(e) => setFormData({...formData, electricalSwitches: e.target.value})}
