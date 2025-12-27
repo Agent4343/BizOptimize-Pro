@@ -83,7 +83,12 @@ function getTradeSpecificPrompt(trade: string, formData: any): string {
 function renderTradeSpecificFields(trade: string, formData: any, setFormData: any) {
   const isGarage = formData.projectType === 'garage';
   const isHouse = formData.projectType === 'house';
-  const sqft = parseInt(formData.squareFootage) || (isGarage ? 600 : 2000);
+  const hasProjectType = formData.projectType && formData.projectType !== '';
+
+  // Use entered square footage, or default based on project type
+  const enteredSqft = parseInt(formData.squareFootage);
+  const sqft = !isNaN(enteredSqft) && enteredSqft > 0 ? enteredSqft : (isGarage ? 600 : 2000);
+  const projectLabel = isGarage ? 'garage' : (isHouse ? 'home' : 'project');
 
   // CEC-based recommended values
   const cecDefaults = {
@@ -108,8 +113,11 @@ function renderTradeSpecificFields(trade: string, formData: any, setFormData: an
         <div className="space-y-4">
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
             <p className="text-sm text-blue-700">
-              <strong>CEC Recommended for {sqft} sq ft {isGarage ? 'garage' : 'home'}:</strong> {defaults.panel}A panel, {defaults.circuits} circuits, {defaults.outlets} outlets, {defaults.switches} switches
+              <strong>CEC Recommended for {sqft.toLocaleString()} sq ft {projectLabel}:</strong> {defaults.panel}A panel, {defaults.circuits} circuits, {defaults.outlets} outlets, {defaults.switches} switches
             </p>
+            {!hasProjectType && (
+              <p className="text-xs text-blue-500 mt-1">⚠️ Select a project type above for accurate recommendations</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
