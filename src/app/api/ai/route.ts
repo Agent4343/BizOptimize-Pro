@@ -200,17 +200,55 @@ export async function POST(request: NextRequest) {
           const cecExpectedOutlets = isGarage ? Math.ceil(sqft / 60) : Math.ceil(sqft / 60);
           const cecExpectedSwitches = isGarage ? Math.ceil(sqft / 200) : Math.ceil(sqft / 120);
 
-          // Electrical pricing (CAD) - industry standard rates
-          const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
-          const circuitCost = circuits * 110;
-          const outletCost = outlets * 65;
-          const switchCost = switches * 65;
-          const wireCost = Math.round(sqft * 1.05); // ~$1.05 per sq ft for wiring
+          // Labor hour calculations (industry standard times)
+          const panelHours = panelSize >= 200 ? 6 : 4; // Hours to install panel
+          const circuitHoursEach = 0.75; // 45 min per circuit
+          const outletHoursEach = 0.5; // 30 min per outlet
+          const switchHoursEach = 0.4; // 24 min per switch
+          const wiringHoursPerSqft = 0.015; // Rough-in wiring time
+
+          const totalCircuitHours = Math.round(circuits * circuitHoursEach * 10) / 10;
+          const totalOutletHours = Math.round(outlets * outletHoursEach * 10) / 10;
+          const totalSwitchHours = Math.round(switches * switchHoursEach * 10) / 10;
+          const totalWiringHours = Math.round(sqft * wiringHoursPerSqft * 10) / 10;
+          const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours;
+
+          // Crew size calculation (based on project complexity)
+          const journeymanRate = 85; // $/hour CAD
+          const apprenticeRate = 45; // $/hour CAD
+          const needsApprentice = totalLaborHours > 16 || circuits > 10;
+          const crewSize = needsApprentice ? 2 : 1;
+          const workHoursPerDay = 8;
+          const effectiveHoursPerDay = crewSize === 2 ? workHoursPerDay * 1.6 : workHoursPerDay; // 2-person crew is ~60% more efficient
+          const projectDays = Math.ceil(totalLaborHours / effectiveHoursPerDay);
+
+          // Travel time estimate (based on location - simplified)
+          const isRemote = /rural|remote|outside|country/i.test(locationValue);
+          const travelHours = isRemote ? 2 : 0.5;
+          const travelCost = Math.round(travelHours * projectDays * 65); // Travel charge per day
+
+          // Labor cost breakdown
+          const journeymanHours = totalLaborHours;
+          const apprenticeHours = needsApprentice ? Math.round(totalLaborHours * 0.7) : 0;
+          const journeymanCost = Math.round(journeymanHours * journeymanRate);
+          const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
+          const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
+
+          // Material costs
+          const panelMaterial = panelSize >= 200 ? 1200 : (panelSize >= 150 ? 900 : 650);
+          const circuitMaterial = circuits * 45; // Wire, breakers per circuit
+          const outletMaterial = outlets * 25; // Outlet, box, cover
+          const switchMaterial = switches * 20; // Switch, box, cover
+          const wireMaterial = Math.round(sqft * 0.85); // Romex, connectors, etc.
+          const miscMaterial = Math.round((panelMaterial + circuitMaterial + outletMaterial + switchMaterial) * 0.1); // Misc supplies
+          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial + miscMaterial;
+
+          // Other costs
           const permitCost = isGarage ? 250 : 350;
           const inspectionCost = isGarage ? 150 : 200;
-          const laborCost = Math.round((panelInstall + circuitCost + outletCost + switchCost) * 0.35);
+          const overhead = Math.round((totalLaborCost + totalMaterialCost) * 0.15); // 15% overhead/profit
 
-          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + laborCost;
+          let totalCost = totalLaborCost + totalMaterialCost + permitCost + inspectionCost + overhead;
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
 
@@ -237,22 +275,63 @@ export async function POST(request: NextRequest) {
 
 *CEC Expected: Based on ${sqft} sq ft ${isGarage ? 'garage' : 'home'} per Canadian Electrical Code guidelines${specsNote}
 
+## Crew & Timeline
+
+| Detail | Estimate |
+|--------|----------|
+| **Crew Size** | ${crewSize} (${needsApprentice ? '1 Journeyman + 1 Apprentice' : '1 Journeyman'}) |
+| **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hrs |
+| **Project Duration** | ${projectDays} day${projectDays > 1 ? 's' : ''} |
+| **Travel Time** | ${travelHours} hr${travelHours > 1 ? 's' : ''}/day${isRemote ? ' (remote location)' : ''} |
+
+### Labor Hours Breakdown
+| Task | Hours |
+|------|-------|
+| Panel Installation | ${panelHours} hrs |
+| Circuit Rough-in (${circuits} circuits) | ${totalCircuitHours} hrs |
+| Outlet Installation (${outlets} outlets) | ${totalOutletHours} hrs |
+| Switch Installation (${switches} switches) | ${totalSwitchHours} hrs |
+| Wiring & Rough-in | ${totalWiringHours} hrs |
+| **Total** | **${totalLaborHours.toFixed(1)} hrs** |
+
 ## Detailed Cost Breakdown
 
-### Electrical Components
-- **Main Panel Installation**: $${panelInstall.toLocaleString()}
-- **Circuit Installation** (${circuits} circuits @ $110): $${circuitCost.toLocaleString()}
-- **Outlet Installation** (${outlets} outlets @ $65): $${outletCost.toLocaleString()}
-- **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
-- **Wiring & Materials**: $${wireCost.toLocaleString()}
+### Labor Costs
+| Role | Hours | Rate | Cost |
+|------|-------|------|------|
+| Journeyman Electrician | ${journeymanHours.toFixed(1)} | $${journeymanRate}/hr | $${journeymanCost.toLocaleString()} |
+${needsApprentice ? `| Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}/hr | $${apprenticeCost.toLocaleString()} |` : ''}
+| Travel (${projectDays} day${projectDays > 1 ? 's' : ''}) | ${(travelHours * projectDays).toFixed(1)} | $65/hr | $${travelCost.toLocaleString()} |
+| **Subtotal Labor** | | | **$${totalLaborCost.toLocaleString()}** |
+
+### Material Costs
+| Item | Cost |
+|------|------|
+| ${panelSize}A Panel & Breakers | $${panelMaterial.toLocaleString()} |
+| Circuit Materials (${circuits} circuits) | $${circuitMaterial.toLocaleString()} |
+| Outlets & Boxes (${outlets}) | $${outletMaterial.toLocaleString()} |
+| Switches & Boxes (${switches}) | $${switchMaterial.toLocaleString()} |
+| Wiring (Romex, connectors) | $${wireMaterial.toLocaleString()} |
+| Misc Supplies | $${miscMaterial.toLocaleString()} |
+| **Subtotal Materials** | **$${totalMaterialCost.toLocaleString()}** |
 
 ### Other Costs
-- **Permits**: $${permitCost.toLocaleString()}
-- **Inspections**: $${inspectionCost.toLocaleString()}
-- **Labor (35%)**: $${laborCost.toLocaleString()}
+| Item | Cost |
+|------|------|
+| Permits | $${permitCost.toLocaleString()} |
+| Inspections | $${inspectionCost.toLocaleString()} |
+| Overhead & Profit (15%) | $${overhead.toLocaleString()} |
+| **Subtotal Other** | **$${(permitCost + inspectionCost + overhead).toLocaleString()}** |
 
 ## Summary
-- **Total Project Cost**: $${totalCost.toLocaleString()} CAD
+
+| Category | Amount |
+|----------|--------|
+| Labor | $${totalLaborCost.toLocaleString()} |
+| Materials | $${totalMaterialCost.toLocaleString()} |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()} |
+| Overhead & Profit | $${overhead.toLocaleString()} |
+| **Total Project Cost** | **$${totalCost.toLocaleString()} CAD** |
 
 ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         },
