@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest) {
     // Update each rate
     const updatedRates = await Promise.all(
       rates.map(async (rate: { workerType: string; hourlyRate: number; overtimeRate?: number }) => {
-        return prisma.laborRate.upsert({
+        return prisma!.laborRate.upsert({
           where: {
             contractorId_workerType: {
               contractorId: contractor.id,
