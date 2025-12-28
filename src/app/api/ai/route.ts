@@ -238,23 +238,84 @@ export async function POST(request: NextRequest) {
       const tradeCalculators: Record<string, (prompt: string) => string> = {
         electrical: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
-          
+
+          // ============ DETECT SPECIAL REQUIREMENTS FROM CONVERSATION ============
+          // Check if user requested special equipment (look for "yes" answers, not just mentions)
+          const promptLower = prompt.toLowerCase();
+
+          // EV Charger detection - look for affirmative responses
+          const wantsEVCharger = (
+            (/ev\s*charg/i.test(prompt) && !/no\s+ev|don't\s+need\s+ev|not\s+need.*ev/i.test(prompt)) ||
+            /yes.*ev|ev.*yes|want.*ev.*charg|need.*ev.*charg|install.*ev/i.test(prompt)
+          );
+
+          // Welder detection
+          const wantsWelder = (
+            (/welder|welding/i.test(prompt) && !/no\s+weld|don't\s+need.*weld|not\s+need.*weld/i.test(prompt)) ||
+            /yes.*weld|weld.*yes|want.*weld|need.*weld|have.*weld/i.test(prompt)
+          );
+
+          // Workshop/heavy tools detection
+          const wantsWorkshop = (
+            (/workshop|power\s*tools|heavy\s*tools|table\s*saw|compressor/i.test(prompt) &&
+             !/no\s+workshop|basic\s+garage|just.*storage|not.*workshop/i.test(prompt)) ||
+            /yes.*workshop|workshop.*yes|want.*workshop|use.*workshop/i.test(prompt)
+          );
+
+          // Heat pump detection
+          const wantsHeatPump = (
+            (/heat\s*pump|mini\s*split/i.test(prompt) && !/no\s+heat|don't\s+need.*heat/i.test(prompt)) ||
+            /yes.*heat.*pump|want.*heat.*pump|install.*heat.*pump/i.test(prompt)
+          );
+
+          // 200A explicitly requested
+          const wants200A = /200\s*a|200\s*amp/i.test(prompt);
+
+          // Underground/long run detection
+          const hasUndergroundRun = /underground|buried|trench/i.test(prompt);
+          const runLengthMatch = prompt.match(/(\d+)\s*(?:feet|ft|foot|meter|m)\s*(?:run|underground|from|to\s+garage)/i);
+          const runLength = runLengthMatch ? parseInt(runLengthMatch[1]) : 0;
+
+          // Determine if heavy-duty installation needed
+          const needsHeavyDuty = wantsEVCharger || wantsWelder || wantsWorkshop || wantsHeatPump || wants200A;
+
+          // ============ END SPECIAL REQUIREMENTS DETECTION ============
+
           // Extract values with better regex patterns and validation
           const panelMatch = prompt.match(/(?:Panel|Main Panel).*?(\d+)\s*(?:amp|amps|A)/i);
           const circuitsMatch = prompt.match(/(?:Circuits|Number of Circuits).*?(\d+)/i);
           // More specific outlet matching - avoid matching voltage (240V) or other numbers
           const outletsMatch = prompt.match(/(?:Outlets|Number of Outlets|Electrical Outlets).*?(\d+)(?!\s*(?:V|volt|amp|amps|A|sq|ft|feet))/i);
           const switchesMatch = prompt.match(/(?:Switches|Number of Switches|Light Switches).*?(\d+)/i);
-          
-          // Default values adjusted for garage vs house
-          let panelSize = panelMatch ? parseInt(panelMatch[1]) : (isGarage ? 100 : 200);
-          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (isGarage ? 8 : 20);
-          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : (isGarage ? 6 : 30);
+
+          // Default values - UPGRADE TO 200A if heavy-duty requirements detected
+          let panelSize = panelMatch ? parseInt(panelMatch[1]) : (needsHeavyDuty ? 200 : (isGarage ? 100 : 200));
+          let circuits = circuitsMatch ? parseInt(circuitsMatch[1]) : (needsHeavyDuty ? 16 : (isGarage ? 8 : 20));
+          let outlets = outletsMatch ? parseInt(outletsMatch[1]) : (needsHeavyDuty ? 12 : (isGarage ? 6 : 30));
           let switches = switchesMatch ? parseInt(switchesMatch[1]) : (isGarage ? 3 : 15);
-          
+
+          // Force 200A if heavy-duty equipment requested
+          if (needsHeavyDuty && panelSize < 200) {
+            panelSize = 200;
+          }
+
+          // Add circuits for special equipment
+          let evCircuits = 0;
+          let welderCircuits = 0;
+          let workshopCircuits = 0;
+          let heatPumpCircuits = 0;
+
+          if (wantsEVCharger) evCircuits = 1; // 240V/50A circuit
+          if (wantsWelder) welderCircuits = 1; // 240V/50A circuit
+          if (wantsWorkshop) workshopCircuits = 2; // Extra 20A circuits for tools
+          if (wantsHeatPump) heatPumpCircuits = 1; // 240V circuit for heat pump
+
+          const specialCircuits = evCircuits + welderCircuits + workshopCircuits + heatPumpCircuits;
+          circuits += specialCircuits;
+
           // Validation and sanity checks
-          if (panelSize < 60 || panelSize > 400) panelSize = isGarage ? 100 : 200;
-          if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
+          if (panelSize < 60 || panelSize > 400) panelSize = needsHeavyDuty ? 200 : (isGarage ? 100 : 200);
+          if (circuits < 1 || circuits > 100) circuits = needsHeavyDuty ? 16 : (isGarage ? 8 : 20);
           if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
           if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
 
@@ -283,18 +344,26 @@ export async function POST(request: NextRequest) {
           const switchHoursEach = 0.4; // 24 min per switch
           const wiringHoursPerSqft = 0.015; // Rough-in wiring time
 
+          // Special equipment labor hours
+          const evChargerHours = wantsEVCharger ? 3 : 0; // 3 hrs for 240V/50A EV circuit
+          const welderHours = wantsWelder ? 2.5 : 0; // 2.5 hrs for welder outlet
+          const heatPumpHours = wantsHeatPump ? 2 : 0; // 2 hrs for heat pump circuit
+          const workshopHours = wantsWorkshop ? 3 : 0; // 3 hrs for extra workshop circuits
+          const undergroundHours = hasUndergroundRun ? (runLength > 0 ? Math.ceil(runLength / 20) : 4) : 0; // ~1hr per 20ft + trenching
+
           const totalCircuitHours = Math.round(circuits * circuitHoursEach * 10) / 10;
           const totalOutletHours = Math.round(outlets * outletHoursEach * 10) / 10;
           const totalSwitchHours = Math.round(switches * switchHoursEach * 10) / 10;
           const totalWiringHours = Math.round(sqft * wiringHoursPerSqft * 10) / 10;
-          const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours;
+          const specialEquipmentHours = evChargerHours + welderHours + heatPumpHours + workshopHours + undergroundHours;
+          const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours + specialEquipmentHours;
 
           // Crew size calculation (based on project complexity)
           // Use contractor settings if available, otherwise use defaults
           const journeymanRate = contractorSettings?.journeymanRate || 85; // $/hour CAD
           const apprenticeRate = contractorSettings?.apprenticeRate || 45; // $/hour CAD
           const travelRate = contractorSettings?.travelRate || 65; // $/hour CAD
-          const needsApprentice = totalLaborHours > 16 || circuits > 10;
+          const needsApprentice = totalLaborHours > 16 || circuits > 10 || needsHeavyDuty;
           const crewSize = needsApprentice ? 2 : 1;
           const workHoursPerDay = 8;
           const effectiveHoursPerDay = crewSize === 2 ? workHoursPerDay * 1.6 : workHoursPerDay; // 2-person crew is ~60% more efficient
@@ -318,8 +387,22 @@ export async function POST(request: NextRequest) {
           const outletMaterial = outlets * 25; // Outlet, box, cover
           const switchMaterial = switches * 20; // Switch, box, cover
           const wireMaterial = Math.round(sqft * 0.85); // Romex, connectors, etc.
+
+          // Special equipment materials
+          const evChargerMaterial = wantsEVCharger ? 450 : 0; // 50A outlet, 6/3 wire, breaker
+          const welderMaterial = wantsWelder ? 350 : 0; // 50A outlet, 6/3 wire, breaker
+          const heatPumpMaterial = wantsHeatPump ? 280 : 0; // Disconnect, whip, breaker
+          const workshopMaterial = wantsWorkshop ? 200 : 0; // Extra 20A circuits materials
+
+          // Underground run materials (if applicable)
+          const undergroundMaterial = hasUndergroundRun ? (
+            runLength > 0 ? Math.round(runLength * 12) : 800 // ~$12/ft for conduit + wire, or $800 default
+          ) : 0;
+
+          const specialEquipmentMaterial = evChargerMaterial + welderMaterial + heatPumpMaterial + workshopMaterial + undergroundMaterial;
+
           const miscMaterial = Math.round((panelMaterial + circuitMaterial + outletMaterial + switchMaterial) * 0.1); // Misc supplies
-          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial + miscMaterial;
+          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial + miscMaterial + specialEquipmentMaterial;
 
           // Other costs
           const permitCost = isGarage ? 250 : 350;
@@ -400,10 +483,10 @@ ${companyHeader}
 
 | Field | Details |
 |-------|---------|
-| **Project Name** | ${isGarage ? 'Garage' : 'Residential'} Electrical Installation |
+| **Project Name** | ${isGarage ? (needsHeavyDuty ? 'Workshop Garage' : 'Garage') : 'Residential'} Electrical Installation |
 | **Location** | ${locationValue || 'Not specified'} |
 | **Province** | ${provinceValue} |
-| **Project Type** | ${isGarage ? 'Detached Garage' : 'Residential Home'} |
+| **Project Type** | ${isGarage ? (needsHeavyDuty ? 'Workshop/Heavy-Duty Garage' : 'Detached Garage') : 'Residential Home'} |
 | **Square Footage** | ${sqft.toLocaleString()} sq ft |
 
 ---
@@ -416,8 +499,8 @@ ${companyHeader}
 | Branch Circuits | ${circuits} | ${cecExpectedCircuits} |
 | Receptacle Outlets | ${outlets} | ${cecExpectedOutlets} |
 | Light Switches | ${switches} | ${cecExpectedSwitches} |
-
-*Per Canadian Electrical Code (CEC) for ${sqft} sq ft ${isGarage ? 'garage' : 'dwelling'}${specsNote}
+${wantsEVCharger ? '| **EV Charger Circuit** | 240V/50A | N/A |\n' : ''}${wantsWelder ? '| **Welder Circuit** | 240V/50A | N/A |\n' : ''}${wantsHeatPump ? '| **Heat Pump Circuit** | 240V/30A | N/A |\n' : ''}${wantsWorkshop ? '| **Workshop Circuits** | 2x 120V/20A | N/A |\n' : ''}${hasUndergroundRun ? `| **Underground Feed** | ${runLength > 0 ? runLength + ' ft' : 'Yes'} | N/A |\n` : ''}
+*Per Canadian Electrical Code (CEC) for ${sqft} sq ft ${isGarage ? 'garage' : 'dwelling'}${needsHeavyDuty ? ' (upgraded for heavy-duty equipment)' : ''}${specsNote}
 
 ---
 
@@ -440,7 +523,7 @@ ${companyHeader}
 | 3 | Receptacle Installation (${outlets} units) | ${totalOutletHours} hrs |
 | 4 | Switch Installation (${switches} units) | ${totalSwitchHours} hrs |
 | 5 | Wiring, Terminations & Testing | ${totalWiringHours} hrs |
-| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+${specialEquipmentHours > 0 ? `| 6 | Special Equipment Installation | ${specialEquipmentHours} hrs |\n` : ''}| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
 
 ---
 
@@ -464,7 +547,7 @@ ${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $
 | Receptacles, Boxes & Covers | ${outlets} | $${outletMaterial.toLocaleString()}.00 |
 | Switches, Boxes & Covers | ${switches} | $${switchMaterial.toLocaleString()}.00 |
 | NMD90 Wire & Connectors | - | $${wireMaterial.toLocaleString()}.00 |
-| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${evChargerMaterial.toLocaleString()}.00 |\n` : ''}${wantsWelder ? `| Welder Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${welderMaterial.toLocaleString()}.00 |\n` : ''}${wantsHeatPump ? `| Heat Pump Circuit (disconnect, whip, breaker) | 1 | $${heatPumpMaterial.toLocaleString()}.00 |\n` : ''}${wantsWorkshop ? `| Workshop Circuit Materials (20A circuits) | 2 | $${workshopMaterial.toLocaleString()}.00 |\n` : ''}${hasUndergroundRun ? `| Underground Feed (conduit, wire, fittings) | ${runLength > 0 ? runLength + ' ft' : '1'} | $${undergroundMaterial.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
 | **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
 
 ### C. Permits & Inspections
