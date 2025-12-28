@@ -279,7 +279,28 @@ export async function POST(request: NextRequest) {
           // Determine if heavy-duty installation needed
           const needsHeavyDuty = wantsEVCharger || wantsWelder || wantsWorkshop || wantsHeatPump || wants200A;
 
-          // ============ END SPECIAL REQUIREMENTS DETECTION ============
+          // ============ SCOPE CLASSIFICATION ============
+          // Classify project scope for accurate estimating
+          let scopeType: string;
+          let scopeDescription: string;
+          if (wantsEVCharger && !wantsWelder && !wantsWorkshop) {
+            scopeType = 'EV-Ready';
+            scopeDescription = 'Standard installation with EV charging capability';
+          } else if (wantsWelder || wantsWorkshop || (wantsEVCharger && (wantsWelder || wantsWorkshop))) {
+            scopeType = 'Workshop / Heavy-Duty';
+            scopeDescription = 'Heavy-duty installation for workshop or industrial equipment';
+          } else if (isGarage && !needsHeavyDuty) {
+            scopeType = 'Garage (Basic)';
+            scopeDescription = 'Basic garage electrical with standard lighting and outlets';
+          } else if (isGarage) {
+            scopeType = 'Garage (Standard)';
+            scopeDescription = 'Standard garage electrical installation';
+          } else {
+            scopeType = 'Standard Residential';
+            scopeDescription = 'Residential electrical installation per CEC requirements';
+          }
+
+          // ============ END SCOPE CLASSIFICATION ============
 
           // Extract values with better regex patterns and validation
           const panelMatch = prompt.match(/(?:Panel|Main Panel).*?(\d+)\s*(?:amp|amps|A)/i);
@@ -407,12 +428,25 @@ export async function POST(request: NextRequest) {
           // Other costs
           const permitCost = isGarage ? 250 : 350;
           const inspectionCost = isGarage ? 150 : 200;
-          const overheadPercent = contractorSettings?.overheadPercent || 15;
-          const overhead = Math.round((totalLaborCost + totalMaterialCost) * (overheadPercent / 100)); // overhead/profit
 
-          let totalCost = totalLaborCost + totalMaterialCost + permitCost + inspectionCost + overhead;
+          // Direct costs (before overhead/profit)
+          const directCosts = totalLaborCost + totalMaterialCost + permitCost + inspectionCost;
+
+          // Overhead and Profit calculation (INTERNAL - separated for contractor visibility)
+          const overheadPercent = contractorSettings?.overheadPercent || 12;
+          const profitPercent = contractorSettings?.profitPercent || 10;
+          const overheadAmount = Math.round(directCosts * (overheadPercent / 100));
+          const profitAmount = Math.round(directCosts * (profitPercent / 100));
+          const overheadAndProfit = overheadAmount + profitAmount; // Combined for customer display
+
+          let totalCost = directCosts + overheadAndProfit;
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
+
+          // Internal profit metrics
+          const grossProfit = totalCost - (totalLaborCost + totalMaterialCost + permitCost + inspectionCost);
+          const profitMargin = Math.round((grossProfit / totalCost) * 100);
+          const riskLevel = profitMargin < 15 ? 'High' : (profitMargin < 20 ? 'Medium' : 'Low');
 
           // Check if specs differ from CEC expected and generate appropriate note
           let specsNote = '';
@@ -488,6 +522,9 @@ ${companyHeader}
 | **Province** | ${provinceValue} |
 | **Project Type** | ${isGarage ? (needsHeavyDuty ? 'Workshop/Heavy-Duty Garage' : 'Detached Garage') : 'Residential Home'} |
 | **Square Footage** | ${sqft.toLocaleString()} sq ft |
+| **Scope Classification** | ${scopeType} |
+
+**Scope:** ${scopeDescription}
 
 ---
 
@@ -562,7 +599,7 @@ ${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $
 
 | Item | Amount |
 |------|--------|
-| Contractor Overhead (${overheadPercent}%) | $${overhead.toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
 
 ---
 
@@ -573,7 +610,7 @@ ${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $
 | Labor | $${totalLaborCost.toLocaleString()}.00 |
 | Materials | $${totalMaterialCost.toLocaleString()}.00 |
 | Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
-| Overhead & Profit | $${overhead.toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
 | | |
 | **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
 
@@ -596,9 +633,34 @@ ${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $
 - Valid electrical contractor license${licenseNumber ? ` (${licenseNumber})` : ''}
 - ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
 - WSIB/WCB coverage for all workers
-- ESA/Provincial inspection required before energization
+- Provincial inspection required before energization
 
-${generateCodeComplianceSection(provinceValue, 'electrical')}`;
+${generateCodeComplianceSection(provinceValue, 'electrical')}
+
+---
+
+## INTERNAL CONTRACTOR SUMMARY
+*This section is for contractor use only - NOT included in customer-facing quote*
+
+| Metric | Value |
+|--------|-------|
+| **Direct Costs** | $${directCosts.toLocaleString()}.00 |
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| | |
+| **Overhead (${overheadPercent}%)** | $${overheadAmount.toLocaleString()}.00 |
+| **Profit (${profitPercent}%)** | $${profitAmount.toLocaleString()}.00 |
+| | |
+| **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
+| **Profit Margin** | ${profitMargin}% |
+| **Risk Level** | ${riskLevel} |
+
+### Notes
+- Profit margin below 15% = High Risk
+- Profit margin 15-20% = Medium Risk
+- Profit margin above 20% = Low Risk
+- Review scope and pricing if risk is High`;
         },
         
         plumbing: (prompt: string) => {
