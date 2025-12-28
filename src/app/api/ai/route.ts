@@ -2,6 +2,79 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractProvinceEnhanced, getProvinceCostMultiplier } from '@/lib/province-data';
 import { validateEstimate } from '@/lib/validation';
 import { generateCodeComplianceSection, getCodeReference } from '@/lib/building-codes';
+import prisma from '@/lib/prisma';
+
+// Interface for contractor settings
+interface ContractorSettings {
+  companyName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  licenseNumber: string;
+  insuranceProvider: string;
+  insuranceAmount: string;
+  journeymanRate: number;
+  apprenticeRate: number;
+  helperRate: number;
+  travelRate: number;
+  overheadPercent: number;
+  depositPercent: number;
+  paymentTerms: string;
+  warrantyYears: number;
+  warrantyTerms: string;
+  quoteValidDays: number;
+}
+
+// Fetch contractor settings from database
+async function getContractorSettings(): Promise<ContractorSettings | null> {
+  try {
+    // Return null if database is not configured
+    if (!prisma) return null;
+
+    const contractor = await prisma.contractor.findFirst({
+      include: {
+        laborRates: true,
+        quoteSettings: true,
+      },
+    });
+
+    if (!contractor) return null;
+
+    // Extract labor rates
+    const journeymanRate = contractor.laborRates.find(r => r.workerType === 'journeyman')?.hourlyRate || 85;
+    const apprenticeRate = contractor.laborRates.find(r => r.workerType === 'apprentice')?.hourlyRate || 45;
+    const helperRate = contractor.laborRates.find(r => r.workerType === 'helper')?.hourlyRate || 35;
+
+    return {
+      companyName: contractor.companyName,
+      email: contractor.email,
+      phone: contractor.phone || '',
+      address: contractor.address || '',
+      city: contractor.city || '',
+      province: contractor.province || '',
+      postalCode: contractor.postalCode || '',
+      licenseNumber: contractor.licenseNumber || '',
+      insuranceProvider: contractor.insuranceProvider || '',
+      insuranceAmount: contractor.insuranceAmount || '',
+      journeymanRate,
+      apprenticeRate,
+      helperRate,
+      travelRate: contractor.quoteSettings?.travelRate || 65,
+      overheadPercent: contractor.quoteSettings?.overheadPercent || 15,
+      depositPercent: contractor.quoteSettings?.depositPercent || 50,
+      paymentTerms: contractor.quoteSettings?.paymentTerms || 'Balance due upon completion',
+      warrantyYears: contractor.quoteSettings?.warrantyYears || 1,
+      warrantyTerms: contractor.quoteSettings?.warrantyTerms || '',
+      quoteValidDays: contractor.quoteSettings?.quoteValidDays || 30,
+    };
+  } catch (error) {
+    console.error('Error fetching contractor settings:', error);
+    return null;
+  }
+}
 
 // Helper function to call OpenAI API with function calling for code compliance
 async function callOpenAI(prompt: string, systemPrompt: string, functions?: any[]) {
@@ -128,6 +201,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { prompt, businessType, optimizationType, trade, province, location } = body;
 
+    // Fetch contractor settings from database
+    const contractorSettings = await getContractorSettings();
+
     // Generate trade-specific estimate
     const generateTradeSpecificEstimate = (promptText: string, tradeType: string) => {
       // Extract location and province from prompt or use provided values
@@ -181,62 +257,263 @@ export async function POST(request: NextRequest) {
           if (circuits < 1 || circuits > 100) circuits = isGarage ? 8 : 20;
           if (outlets < 0 || outlets > 200) outlets = isGarage ? 6 : 30; // Cap at 200 max
           if (switches < 0 || switches > 100) switches = isGarage ? 3 : 15;
-          
+
+          // Get square footage for calculations
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
           // Additional sanity check: for garages, cap outlets at reasonable number based on size
-          // Typical: 1 outlet per 50-100 sq ft for garages
           if (isGarage) {
-            const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
-            const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 600;
             const maxReasonableOutlets = Math.ceil(sqft / 50); // 1 per 50 sq ft max
             if (outlets > maxReasonableOutlets) {
               outlets = Math.min(maxReasonableOutlets, 12); // Cap at 12 for garages
             }
           }
-          
-          // Electrical pricing (CAD) - adjusted for garage
-          const panelInstall = panelSize >= 200 ? 2500 : (panelSize >= 150 ? 2000 : 1500);
-          const circuitCost = circuits * 150;
-          const outletCost = outlets * 85;
-          const switchCost = switches * 65;
-          const wireCost = (circuits + outlets) * 25;
-          const permitCost = isGarage ? 250 : 350; // Lower permit cost for garages
-          const inspectionCost = isGarage ? 150 : 200; // Lower inspection cost for garages
-          const contractorOverhead = Math.round((panelInstall + circuitCost + outletCost + switchCost + wireCost) * 0.20);
-          
-          let totalCost = panelInstall + circuitCost + outletCost + switchCost + wireCost + permitCost + inspectionCost + contractorOverhead;
+
+          // CEC Expected values based on project type and size
+          const cecExpectedPanel = isGarage ? 100 : 200;
+          const cecExpectedCircuits = isGarage ? Math.ceil(sqft / 75) : Math.ceil(sqft / 100);
+          const cecExpectedOutlets = isGarage ? Math.ceil(sqft / 60) : Math.ceil(sqft / 60);
+          const cecExpectedSwitches = isGarage ? Math.ceil(sqft / 200) : Math.ceil(sqft / 120);
+
+          // Labor hour calculations (industry standard times)
+          const panelHours = panelSize >= 200 ? 6 : 4; // Hours to install panel
+          const circuitHoursEach = 0.75; // 45 min per circuit
+          const outletHoursEach = 0.5; // 30 min per outlet
+          const switchHoursEach = 0.4; // 24 min per switch
+          const wiringHoursPerSqft = 0.015; // Rough-in wiring time
+
+          const totalCircuitHours = Math.round(circuits * circuitHoursEach * 10) / 10;
+          const totalOutletHours = Math.round(outlets * outletHoursEach * 10) / 10;
+          const totalSwitchHours = Math.round(switches * switchHoursEach * 10) / 10;
+          const totalWiringHours = Math.round(sqft * wiringHoursPerSqft * 10) / 10;
+          const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours;
+
+          // Crew size calculation (based on project complexity)
+          // Use contractor settings if available, otherwise use defaults
+          const journeymanRate = contractorSettings?.journeymanRate || 85; // $/hour CAD
+          const apprenticeRate = contractorSettings?.apprenticeRate || 45; // $/hour CAD
+          const travelRate = contractorSettings?.travelRate || 65; // $/hour CAD
+          const needsApprentice = totalLaborHours > 16 || circuits > 10;
+          const crewSize = needsApprentice ? 2 : 1;
+          const workHoursPerDay = 8;
+          const effectiveHoursPerDay = crewSize === 2 ? workHoursPerDay * 1.6 : workHoursPerDay; // 2-person crew is ~60% more efficient
+          const projectDays = Math.ceil(totalLaborHours / effectiveHoursPerDay);
+
+          // Travel time estimate (based on location - simplified)
+          const isRemote = /rural|remote|outside|country/i.test(locationValue);
+          const travelHours = isRemote ? 2 : 0.5;
+          const travelCost = Math.round(travelHours * projectDays * travelRate); // Travel charge per day
+
+          // Labor cost breakdown
+          const journeymanHours = totalLaborHours;
+          const apprenticeHours = needsApprentice ? Math.round(totalLaborHours * 0.7) : 0;
+          const journeymanCost = Math.round(journeymanHours * journeymanRate);
+          const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
+          const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
+
+          // Material costs
+          const panelMaterial = panelSize >= 200 ? 1200 : (panelSize >= 150 ? 900 : 650);
+          const circuitMaterial = circuits * 45; // Wire, breakers per circuit
+          const outletMaterial = outlets * 25; // Outlet, box, cover
+          const switchMaterial = switches * 20; // Switch, box, cover
+          const wireMaterial = Math.round(sqft * 0.85); // Romex, connectors, etc.
+          const miscMaterial = Math.round((panelMaterial + circuitMaterial + outletMaterial + switchMaterial) * 0.1); // Misc supplies
+          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial + miscMaterial;
+
+          // Other costs
+          const permitCost = isGarage ? 250 : 350;
+          const inspectionCost = isGarage ? 150 : 200;
+          const overheadPercent = contractorSettings?.overheadPercent || 15;
+          const overhead = Math.round((totalLaborCost + totalMaterialCost) * (overheadPercent / 100)); // overhead/profit
+
+          let totalCost = totalLaborCost + totalMaterialCost + permitCost + inspectionCost + overhead;
           // Apply province-specific cost multiplier
           totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
-          
-          return `# Electrical Estimate
 
-## Project Details
-- **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${provinceValue}
-- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Panel Size**: ${panelSize} Amps${isGarage ? ' (Typical for garage)' : ''}
-- **Circuits**: ${circuits}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Outlets**: ${outlets}${isGarage ? ' (Appropriate for garage)' : ''}
-- **Switches**: ${switches}${isGarage ? ' (Appropriate for garage)' : ''}
+          // Check if specs differ from CEC expected and generate appropriate note
+          let specsNote = '';
+          const circuitsDiff = circuits - cecExpectedCircuits;
+          const outletsDiff = outlets - cecExpectedOutlets;
+          const switchesDiff = switches - cecExpectedSwitches;
 
-## Detailed Cost Breakdown
+          if (circuitsDiff !== 0 || outletsDiff !== 0 || switchesDiff !== 0) {
+            const differences: string[] = [];
+            if (circuitsDiff > 0) differences.push(`+${circuitsDiff} circuits`);
+            if (circuitsDiff < 0) differences.push(`${circuitsDiff} circuits`);
+            if (outletsDiff > 0) differences.push(`+${outletsDiff} outlets`);
+            if (outletsDiff < 0) differences.push(`${outletsDiff} outlets`);
+            if (switchesDiff > 0) differences.push(`+${switchesDiff} switches`);
+            if (switchesDiff < 0) differences.push(`${switchesDiff} switches`);
 
-### Electrical Components
-- **Main Panel Installation**: $${panelInstall.toLocaleString()}
-- **Circuit Installation** (${circuits} circuits @ $150): $${circuitCost.toLocaleString()}
-- **Outlet Installation** (${outlets} outlets @ $85): $${outletCost.toLocaleString()}
-- **Switch Installation** (${switches} switches @ $65): $${switchCost.toLocaleString()}
-- **Wiring & Materials**: $${wireCost.toLocaleString()}
+            const isHigher = circuitsDiff > 0 || outletsDiff > 0 || switchesDiff > 0;
+            const isLower = circuitsDiff < 0 || outletsDiff < 0 || switchesDiff < 0;
 
-### Other Costs
-- **Permits**: $${permitCost.toLocaleString()}
-- **Inspections**: $${inspectionCost.toLocaleString()}
-- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+            if (isHigher && !isLower) {
+              specsNote = `\n\n**Note**: Your specifications exceed CEC minimums (${differences.join(', ')}). This may indicate workshop/heavy use requirements.`;
+            } else if (isLower && !isHigher) {
+              specsNote = `\n\n**Note**: Your specifications are below CEC recommendations (${differences.join(', ')}). Consider increasing for code compliance and functionality.`;
+            } else {
+              specsNote = `\n\n**Note**: Your specifications differ from CEC recommendations (${differences.join(', ')}). Review for your specific needs.`;
+            }
+          }
 
-## Summary
-- **Total Electrical Cost**: $${totalCost.toLocaleString()} CAD
-- **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+          // Generate estimate number
+          const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
+          const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const quoteValidDays = contractorSettings?.quoteValidDays || 30;
+          const validUntil = new Date(Date.now() + quoteValidDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+          // Get contractor info for header
+          const companyName = contractorSettings?.companyName || '';
+          const companyPhone = contractorSettings?.phone || '';
+          const companyEmail = contractorSettings?.email || '';
+          const companyAddress = contractorSettings ?
+            [contractorSettings.address, contractorSettings.city, contractorSettings.province, contractorSettings.postalCode]
+              .filter(Boolean).join(', ') : '';
+          const licenseNumber = contractorSettings?.licenseNumber || '';
+
+          // Get terms from contractor settings
+          const depositPercent = contractorSettings?.depositPercent || 50;
+          const paymentTerms = contractorSettings?.paymentTerms || 'Balance due upon completion and successful inspection';
+          const warrantyYears = contractorSettings?.warrantyYears || 1;
+          const warrantyTerms = contractorSettings?.warrantyTerms || 'Manufacturer warranties apply to all materials.';
+
+          // Build company header if contractor info is available
+          const companyHeader = companyName ? `
+${companyName}
+${companyAddress ? companyAddress + '\n' : ''}${companyPhone ? 'Phone: ' + companyPhone + ' | ' : ''}${companyEmail ? 'Email: ' + companyEmail : ''}
+${licenseNumber ? 'License: ' + licenseNumber : ''}
+
+---
+` : '';
+
+          return `# ELECTRICAL ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+**Valid Until:** ${validUntil}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Name** | ${isGarage ? 'Garage' : 'Residential'} Electrical Installation |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Project Type** | ${isGarage ? 'Detached Garage' : 'Residential Home'} |
+| **Square Footage** | ${sqft.toLocaleString()} sq ft |
+
+---
+
+## Electrical Specifications
+
+| Component | Quoted | CEC Minimum* |
+|-----------|--------|--------------|
+| Main Panel | ${panelSize}A | ${cecExpectedPanel}A |
+| Branch Circuits | ${circuits} | ${cecExpectedCircuits} |
+| Receptacle Outlets | ${outlets} | ${cecExpectedOutlets} |
+| Light Switches | ${switches} | ${cecExpectedSwitches} |
+
+*Per Canadian Electrical Code (CEC) for ${sqft} sq ft ${isGarage ? 'garage' : 'dwelling'}${specsNote}
+
+---
+
+## Crew Assignment & Schedule
+
+| | Details |
+|---|---------|
+| **Lead Electrician** | Licensed Journeyman (Red Seal) |
+| **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
+| **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
+| **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hours |
+| **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
+
+### Work Breakdown Schedule
+
+| Phase | Task | Hours |
+|-------|------|-------|
+| 1 | Panel Installation & Main Feed | ${panelHours} hrs |
+| 2 | Circuit Rough-in (${circuits} circuits) | ${totalCircuitHours} hrs |
+| 3 | Receptacle Installation (${outlets} units) | ${totalOutletHours} hrs |
+| 4 | Switch Installation (${switches} units) | ${totalSwitchHours} hrs |
+| 5 | Wiring, Terminations & Testing | ${totalWiringHours} hrs |
+| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+
+---
+
+## Cost Breakdown
+
+### A. Labor
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| Journeyman Electrician | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
+${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |` : ''}
+| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $${travelRate}.00/hr | $${travelCost.toLocaleString()}.00 |
+| **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
+
+### B. Materials
+
+| Item | Qty | Amount |
+|------|-----|--------|
+| ${panelSize}A Main Panel w/ Breakers | 1 | $${panelMaterial.toLocaleString()}.00 |
+| Branch Circuit Materials | ${circuits} | $${circuitMaterial.toLocaleString()}.00 |
+| Receptacles, Boxes & Covers | ${outlets} | $${outletMaterial.toLocaleString()}.00 |
+| Switches, Boxes & Covers | ${switches} | $${switchMaterial.toLocaleString()}.00 |
+| NMD90 Wire & Connectors | - | $${wireMaterial.toLocaleString()}.00 |
+| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
+
+### C. Permits & Inspections
+
+| Item | Amount |
+|------|--------|
+| Electrical Permit | $${permitCost.toLocaleString()}.00 |
+| ESA Inspection Fee | $${inspectionCost.toLocaleString()}.00 |
+| **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
+
+### D. Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Contractor Overhead (${overheadPercent}%) | $${overhead.toLocaleString()}.00 |
+
+---
+
+## ESTIMATE SUMMARY
+
+| Category | Amount |
+|----------|-------:|
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| Overhead & Profit | $${overhead.toLocaleString()}.00 |
+| | |
+| **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
+
+---
+
+## Terms & Conditions
+
+1. **Payment Terms:** ${depositPercent}% deposit required to schedule work. ${paymentTerms}.
+2. **Warranty:** ${warrantyYears}-year workmanship warranty. ${warrantyTerms}
+3. **Permits:** All permits and inspections included in quote.
+4. **Changes:** Any changes to scope will be quoted separately.
+5. **Access:** Clear access to work area required. Additional charges may apply for obstructed access.
+6. **Validity:** This estimate is valid for ${quoteValidDays} days from date of issue.
+
+---
+
+## Contractor Requirements (${provinceValue})
+
+- Licensed Master Electrician supervision required
+- Valid electrical contractor license${licenseNumber ? ` (${licenseNumber})` : ''}
+- ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
+- WSIB/WCB coverage for all workers
+- ESA/Provincial inspection required before energization
 
 ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         },
