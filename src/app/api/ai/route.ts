@@ -1106,42 +1106,42 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
+          const aiSystemPrompt = `You are reviewing a construction estimate for ${finalProvinceForAI}.
 
-1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
-   - Verify all trades comply with ${finalProvinceForAI} building codes
-   - Check electrical code (CEC), plumbing code, fire code
-   - Ensure structural requirements are met
-   - Validate permit requirements
+ABSOLUTELY CRITICAL - READ THIS CAREFULLY:
+- You MUST ONLY review what is in the estimate. DO NOT INVENT OR ASSUME ANYTHING.
+- The customer did NOT request: EV chargers, welding equipment, 200A service, workshop circuits, or anything else not explicitly listed.
+- If the estimate shows a basic garage, it IS a basic garage. Period. Do not imagine it's a workshop.
+- Do NOT say "you requested" for anything that is not explicitly in the project details.
+- Do NOT suggest the estimate is missing things the customer never asked for.
 
-2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
-   - Verify labor rates are current for ${finalProvinceForAI} market
-   - Validate material costs against ${finalProvinceForAI} market rates
-   - Check if pricing aligns with industry standards
-   - Flag any unusually high or low costs
+WHAT YOU SHOULD DO:
+1. Confirm the estimate looks reasonable for the ACTUAL stated scope
+2. Check that the specifications meet ${finalProvinceForAI} code minimums for what WAS requested
+3. Note if pricing seems fair for ${finalProvinceForAI} (Atlantic Canada is 15-25% higher than mainland)
+4. Only flag REAL issues with what was actually quoted
 
-3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
-   - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
-   - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements, especially fire separation for detached structures
+WHAT YOU MUST NOT DO:
+- Do NOT invent requirements (EV chargers, 200A, welding, workshops, etc.)
+- Do NOT claim there's a "scope mismatch" unless the customer's explicit request doesn't match
+- Do NOT suggest upgrades the customer didn't ask for
+- Do NOT write lengthy multi-agent reports
 
-IMPORTANT NOTES:
-- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
-- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
+Keep your review SHORT (2-4 sentences). If the estimate looks good for the stated scope, just say so.`;
 
-Review the provided estimate and provide:
-- Code compliance verification for ${finalProvinceForAI}
-- Pricing validation against ${finalProvinceForAI} market rates
-- Trade-specific code references
-- Any compliance issues or missing requirements
-- Recommended adjustments for accuracy
-
-Format your response with clear sections for each agent's findings.`;
-          
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
+          const enhancedPrompt = `Here is the estimate to review:
+
+${baseResponse}
+
+---
+Customer's original request:
+${prompt}
+---
+
+Province: ${finalProvinceForAI}
+
+REMEMBER: Only comment on what the customer actually asked for. If they asked for a basic garage, review it as a basic garage. Do NOT mention EV chargers, workshops, 200A service, or anything else they did not request. Keep your review to 2-4 sentences.`;
           
           let aiEnhancement = '';
           if (hasAnthropic) {
@@ -1153,7 +1153,7 @@ Format your response with clear sections for each agent's findings.`;
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## AI Review\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails

@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Helper to check if error is database-related (table doesn't exist, connection issue, etc.)
+function isDatabaseError(error: any): boolean {
+  const message = error?.message || '';
+  const code = error?.code || '';
+
+  // Check for common Prisma/PostgreSQL errors
+  return message.includes('does not exist') ||
+         message.includes('relation') ||
+         message.includes('ECONNREFUSED') ||
+         message.includes('connection') ||
+         code === 'P2021' ||  // Table doesn't exist
+         code === 'P2010' ||  // Raw query failed
+         code === 'P2002' ||  // Unique constraint
+         code === 'P1001' ||  // Can't reach database
+         code === 'P1002' ||  // Database timeout
+         /P\d{4}/.test(code); // Any Prisma error code
+}
+
 // GET - Fetch contractor profile
 export async function GET() {
   try {
     // Return null if database is not configured
     if (!prisma) {
-      return NextResponse.json({ contractor: null, message: 'Database not configured' });
+      return NextResponse.json({ contractor: null, message: 'Database not configured. Add DATABASE_URL to enable settings.' });
     }
 
     // For now, get the first contractor (single-tenant)
-    // In production, you'd use auth to get the current user's contractor
     const contractor = await prisma.contractor.findFirst({
       include: {
         laborRates: true,
@@ -25,12 +42,16 @@ export async function GET() {
     }
 
     return NextResponse.json({ contractor });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching contractor:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch contractor profile' },
-      { status: 500 }
-    );
+
+    // Always return 200 with helpful message for any database error
+    return NextResponse.json({
+      contractor: null,
+      message: isDatabaseError(error)
+        ? 'Database tables not created yet. Run: npx prisma db push'
+        : 'Database connection error. Check configuration.'
+    });
   }
 }
 
@@ -108,11 +129,17 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ contractor });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating contractor:', error);
+
+    // Return helpful error message for database errors
+    const errorMessage = isDatabaseError(error)
+      ? 'Database tables not created. Run: npx prisma db push'
+      : 'Failed to create contractor profile. Check database configuration.';
+
     return NextResponse.json(
-      { error: 'Failed to create contractor profile' },
-      { status: 500 }
+      { error: errorMessage },
+      { status: 503 }
     );
   }
 }

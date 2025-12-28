@@ -47,6 +47,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'company' | 'rates' | 'settings'>('company');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dbStatus, setDbStatus] = useState<string | null>(null);
 
   // Form states
   const [companyForm, setCompanyForm] = useState({
@@ -91,6 +92,11 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/contractor');
       const data = await res.json();
 
+      // Check for database status message
+      if (data.message) {
+        setDbStatus(data.message);
+      }
+
       if (data.contractor) {
         setContractor(data.contractor);
         setCompanyForm({
@@ -118,6 +124,7 @@ export default function AdminSettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching contractor:', error);
+      setDbStatus('Unable to connect to database. Settings will use defaults.');
     } finally {
       setLoading(false);
     }
@@ -227,6 +234,22 @@ export default function AdminSettingsPage() {
       {message && (
         <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
           {message.text}
+        </div>
+      )}
+
+      {dbStatus && (
+        <div className="p-4 rounded-lg mb-6 bg-yellow-50 border border-yellow-200">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-semibold text-yellow-800">Database Not Configured</p>
+              <p className="text-sm text-yellow-700 mt-1">{dbStatus}</p>
+              <p className="text-sm text-yellow-600 mt-2">
+                Your estimates will use default rates until the database is set up.
+                Default rates: Journeyman $85/hr, Apprentice $45/hr, 15% overhead.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
