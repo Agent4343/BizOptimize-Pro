@@ -21,6 +21,7 @@ interface ContractorSettings {
   helperRate: number;
   travelRate: number;
   overheadPercent: number;
+  profitPercent: number;
   depositPercent: number;
   paymentTerms: string;
   warrantyYears: number;

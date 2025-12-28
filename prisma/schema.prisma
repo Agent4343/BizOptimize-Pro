@@ -78,7 +78,8 @@ model QuoteSettings {
   contractor       Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
 
   // Pricing
-  overheadPercent  Float      @default(15)  // Overhead & profit margin
+  overheadPercent  Float      @default(12)  // Overhead percentage
+  profitPercent    Float      @default(10)  // Profit margin percentage
   travelRate       Float      @default(65)  // $/hour for travel
   travelMinimum    Float      @default(0)   // Minimum travel charge
 
