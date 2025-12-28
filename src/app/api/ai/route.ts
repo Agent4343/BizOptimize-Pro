@@ -1105,65 +1105,166 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const providedProvinceForAI: string = province || (provinceMatch ? provinceMatch[1].trim() : '');
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
-          // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are reviewing a construction estimate for ${finalProvinceForAI}.
-
-ABSOLUTELY CRITICAL - READ THIS CAREFULLY:
-- You MUST ONLY review what is in the estimate. DO NOT INVENT OR ASSUME ANYTHING.
-- The customer did NOT request: EV chargers, welding equipment, 200A service, workshop circuits, or anything else not explicitly listed.
-- If the estimate shows a basic garage, it IS a basic garage. Period. Do not imagine it's a workshop.
-- Do NOT say "you requested" for anything that is not explicitly in the project details.
-- Do NOT suggest the estimate is missing things the customer never asked for.
-
-WHAT YOU SHOULD DO:
-1. Confirm the estimate looks reasonable for the ACTUAL stated scope
-2. Check that the specifications meet ${finalProvinceForAI} code minimums for what WAS requested
-3. Note if pricing seems fair for ${finalProvinceForAI} (Atlantic Canada is 15-25% higher than mainland)
-4. Only flag REAL issues with what was actually quoted
-
-WHAT YOU MUST NOT DO:
-- Do NOT invent requirements (EV chargers, 200A, welding, workshops, etc.)
-- Do NOT claim there's a "scope mismatch" unless the customer's explicit request doesn't match
-- Do NOT suggest upgrades the customer didn't ask for
-- Do NOT write lengthy multi-agent reports
-
-Keep your review SHORT (2-4 sentences). If the estimate looks good for the stated scope, just say so.`;
-
-          // Enhanced prompt with province and project details
+          // Extract basic project info for agents
           // IMPORTANT: Strip out conversation text - only include basic project info
-          // The conversation may contain questions about EV chargers/welders that the user declined
           const projectTypeMatch = prompt.match(/Project Type:\s*([^\n]+)/i);
           const sqftMatch = prompt.match(/Square Footage:\s*([^\n]+)/i);
           const tradeMatch = prompt.match(/Selected Trade:\s*([^\n]+)/i);
+          const projectType = projectTypeMatch?.[1]?.trim() || 'construction project';
+          const sqft = sqftMatch?.[1]?.trim() || 'Not specified';
+          const tradeName = tradeMatch?.[1]?.trim() || trade || 'electrical';
 
-          const basicProjectInfo = `Project Type: ${projectTypeMatch?.[1] || 'Not specified'}
+          const basicProjectInfo = `Project Type: ${projectType}
 Location: ${extractedLocationForAI || 'Not specified'}
 Province: ${finalProvinceForAI}
-Square Footage: ${sqftMatch?.[1] || 'Not specified'}
-Trade: ${tradeMatch?.[1] || 'Not specified'}`;
+Square Footage: ${sqft}
+Trade: ${tradeName}`;
 
-          const enhancedPrompt = `Here is the estimate to review:
+          // CRITICAL instruction for all agents - DO NOT HALLUCINATE
+          const antiHallucinationRule = `CRITICAL RULE: Only review what is EXPLICITLY in the estimate. Do NOT invent or assume requirements like EV chargers, welding, 200A upgrades, workshops, or anything else not listed. If the estimate shows a basic ${projectType}, review it as exactly that.`;
+
+          // ============ SPECIALIST AGENT DEFINITIONS ============
+
+          // Agent 1: Code Compliance Specialist
+          const codeCompliancePrompt = `You are a **Code Compliance Specialist** for ${finalProvinceForAI}, Canada.
+Your expertise: Canadian Electrical Code (CEC), provincial amendments, permit requirements.
+
+${antiHallucinationRule}
+
+Review ONLY the code compliance aspects of this estimate:
+- Does the panel size meet CEC minimums for the stated square footage?
+- Are the number of circuits adequate per CEC requirements?
+- Are outlet/switch counts within code requirements?
+- Any permit or inspection requirements missing?
+
+Provide 2-3 bullet points. Use ✅ for compliant items, ⚠️ for concerns.
+Do NOT suggest upgrades or additional equipment the customer didn't request.`;
+
+          // Agent 2: Pricing Analyst
+          const pricingAnalystPrompt = `You are a **Pricing Analyst** specializing in ${finalProvinceForAI} construction costs.
+Your expertise: Regional labor rates, material costs, market pricing for Atlantic Canada.
+
+${antiHallucinationRule}
+
+Review ONLY the pricing aspects of this estimate:
+- Are labor rates reasonable for ${finalProvinceForAI}? (Journeyman: $75-95/hr, Apprentice: $40-55/hr typical)
+- Are material costs in line with current ${finalProvinceForAI} pricing?
+- Is the overhead percentage (15-20%) reasonable?
+- Note: Atlantic Canada prices are typically 15-25% higher than mainland
+
+Provide 2-3 bullet points. Use 💰 for pricing notes.
+Focus on whether the customer is getting fair value for the STATED scope.`;
+
+          // Agent 3: Materials Specialist
+          const materialsSpecialistPrompt = `You are a **Materials Specialist** for electrical installations.
+Your expertise: Electrical components, panel specifications, wire gauges, quality standards.
+
+${antiHallucinationRule}
+
+Review ONLY the materials specified in this estimate:
+- Is the panel specification appropriate for the stated load?
+- Are wire types and gauges appropriate (NMD90, etc.)?
+- Are the receptacle and switch quantities reasonable for the space?
+- Any quality concerns with specified materials?
+
+Provide 2-3 bullet points. Use 🔧 for material notes.
+Only comment on what IS in the estimate, not what you think SHOULD be added.`;
+
+          // Agent 4: Safety Inspector
+          const safetyInspectorPrompt = `You are a **Safety Inspector** for electrical installations in ${finalProvinceForAI}.
+Your expertise: Electrical safety, GFCI/AFCI requirements, grounding, hazard prevention.
+
+${antiHallucinationRule}
+
+Review ONLY the safety aspects for the STATED scope:
+- For a ${projectType}: Are appropriate safety devices included? (GFCI for garages/wet areas)
+- Is proper grounding addressed?
+- Any safety concerns with the installation as specified?
+
+Provide 2-3 bullet points. Use 🛡️ for safety items, ⚠️ for concerns.
+Do NOT invent hazards for equipment that wasn't requested (no EV chargers, welders, etc. unless explicitly listed).`;
+
+          // Agent 5: Project Manager Summary
+          const projectManagerPrompt = `You are a **Senior Project Manager** reviewing this estimate for a client in ${finalProvinceForAI}.
+Your role: Provide executive summary and overall assessment.
+
+${antiHallucinationRule}
+
+Provide a brief executive summary (3-4 sentences):
+- Overall assessment: Is this estimate reasonable for a ${projectType} of ${sqft}?
+- Value assessment: Is the customer getting fair pricing for ${finalProvinceForAI}?
+- Recommendation: Approve, approve with minor notes, or needs revision?
+
+Be concise and professional. Use plain language the customer can understand.
+Do NOT suggest scope changes or additions the customer didn't request.`;
+
+          // Helper function to call an agent
+          const callAgent = async (agentPrompt: string, agentName: string): Promise<string> => {
+            const userPrompt = `Estimate to review:
 
 ${baseResponse}
 
 ---
-Basic project info (THIS is what the customer actually requested):
+Project Details:
 ${basicProjectInfo}
 ---
 
-REMEMBER: Only comment on what is shown above. The customer requested a basic ${projectTypeMatch?.[1] || 'project'}. Do NOT invent EV chargers, workshops, 200A upgrades, or anything else. Keep your review to 2-4 sentences.`;
-          
-          let aiEnhancement = '';
-          if (hasAnthropic) {
-            aiEnhancement = await callAnthropic(enhancedPrompt, aiSystemPrompt);
-          } else if (hasOpenRouter) {
-            aiEnhancement = await callOpenRouter(enhancedPrompt, aiSystemPrompt);
-          } else {
-            aiEnhancement = await callOpenAI(enhancedPrompt, aiSystemPrompt);
-          }
-          
+Provide your specialist review for this ${projectType}.`;
+
+            try {
+              if (hasAnthropic) {
+                return await callAnthropic(userPrompt, agentPrompt);
+              } else if (hasOpenRouter) {
+                return await callOpenRouter(userPrompt, agentPrompt);
+              } else {
+                return await callOpenAI(userPrompt, agentPrompt);
+              }
+            } catch (err) {
+              console.error(`${agentName} agent error:`, err);
+              return `*${agentName} review unavailable*`;
+            }
+          };
+
+          // Run all agents in parallel for speed
+          const [
+            codeComplianceReview,
+            pricingReview,
+            materialsReview,
+            safetyReview,
+            projectManagerReview
+          ] = await Promise.all([
+            callAgent(codeCompliancePrompt, 'Code Compliance'),
+            callAgent(pricingAnalystPrompt, 'Pricing'),
+            callAgent(materialsSpecialistPrompt, 'Materials'),
+            callAgent(safetyInspectorPrompt, 'Safety'),
+            callAgent(projectManagerPrompt, 'Project Manager')
+          ]);
+
+          // Combine all agent reviews into formatted output
+          const agentReviews = `## 🤖 AI Specialist Team Review
+
+### 📋 Executive Summary
+${projectManagerReview}
+
+---
+
+### 📜 Code Compliance Review
+${codeComplianceReview}
+
+### 💰 Pricing Analysis
+${pricingReview}
+
+### 🔧 Materials Assessment
+${materialsReview}
+
+### 🛡️ Safety Review
+${safetyReview}
+
+---
+*Review generated by AI specialist team for ${finalProvinceForAI}. Always verify with licensed professionals.*`;
+
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## AI Review\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n` + agentReviews;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
