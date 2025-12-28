@@ -79,490 +79,8 @@ function getTradeSpecificPrompt(trade: string, formData: any): string {
   }
 }
 
-// Render trade-specific form fields
-function renderTradeSpecificFields(trade: string, formData: any, setFormData: any) {
-  const isGarage = formData.projectType === 'garage';
-  const isHouse = formData.projectType === 'house';
-  const hasProjectType = formData.projectType && formData.projectType !== '';
-
-  // Use entered square footage, or default based on project type
-  const enteredSqft = parseInt(formData.squareFootage);
-  const sqft = !isNaN(enteredSqft) && enteredSqft > 0 ? enteredSqft : (isGarage ? 600 : 2000);
-  const projectLabel = isGarage ? 'garage' : (isHouse ? 'home' : 'project');
-
-  // CEC-based recommended values
-  const cecDefaults = {
-    garage: {
-      panel: 100,
-      circuits: Math.max(6, Math.ceil(sqft / 75)),
-      outlets: Math.max(4, Math.ceil(sqft / 60)),
-      switches: Math.max(2, Math.ceil(sqft / 200))
-    },
-    house: {
-      panel: 200,
-      circuits: Math.max(12, Math.ceil(sqft / 100)),
-      outlets: Math.max(15, Math.ceil(sqft / 60)),
-      switches: Math.max(8, Math.ceil(sqft / 120))
-    }
-  };
-  const defaults = isGarage ? cecDefaults.garage : cecDefaults.house;
-
-  switch(trade.toLowerCase()) {
-    case 'electrical':
-      return (
-        <div className="space-y-4">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-            <p className="text-sm text-blue-700">
-              <strong>CEC Recommended for {sqft.toLocaleString()} sq ft {projectLabel}:</strong> {defaults.panel}A panel, {defaults.circuits} circuits, {defaults.outlets} outlets, {defaults.switches} switches
-            </p>
-            {!hasProjectType && (
-              <p className="text-xs text-blue-500 mt-1">⚠️ Select a project type above for accurate recommendations</p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Panel Size (Amps)</label>
-              <Input
-                placeholder={String(defaults.panel)}
-                type="number"
-                value={formData.electricalPanelSize}
-                onChange={(e) => setFormData({...formData, electricalPanelSize: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Number of Circuits</label>
-              <Input
-                placeholder={String(defaults.circuits)}
-                type="number"
-                value={formData.electricalCircuits}
-                onChange={(e) => setFormData({...formData, electricalCircuits: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Outlets</label>
-              <Input
-                placeholder={String(defaults.outlets)}
-                type="number"
-                value={formData.electricalOutlets}
-                onChange={(e) => setFormData({...formData, electricalOutlets: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Switches</label>
-              <Input
-                placeholder={String(defaults.switches)}
-                type="number"
-                value={formData.electricalSwitches}
-                onChange={(e) => setFormData({...formData, electricalSwitches: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Lighting Fixtures</label>
-            <Input
-              placeholder="Recessed, pendant, chandelier, etc."
-              value={formData.electricalLighting}
-              onChange={(e) => setFormData({...formData, electricalLighting: e.target.value})}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="EV charger, generator, smart home, etc."
-              value={formData.electricalSpecial}
-              onChange={(e) => setFormData({...formData, electricalSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'plumbing':
-      return (
-        <div className="space-y-4">
-          {!isGarage && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Number of Fixtures</label>
-              <Input
-                placeholder="Toilets, sinks, showers, etc."
-                value={formData.plumbingFixtures}
-                onChange={(e) => setFormData({...formData, plumbingFixtures: e.target.value})}
-              />
-            </div>
-          )}
-          {isGarage && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Garages typically don't require plumbing fixtures. If you need water service for a utility sink or other use, please specify in "Special Requirements" below.
-              </p>
-            </div>
-          )}
-          {!isGarage && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Water Heater Type</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.plumbingWaterHeater}
-                onChange={(e) => setFormData({...formData, plumbingWaterHeater: e.target.value})}
-              >
-                <option value="">Select water heater...</option>
-                <option value="tank">Tank</option>
-                <option value="tankless">Tankless</option>
-                <option value="heat-pump">Heat Pump</option>
-                <option value="none">No Water Heater</option>
-              </select>
-            </div>
-          )}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Drains/Water Lines</label>
-            <Input
-              placeholder="Number of drains, water lines needed"
-              value={formData.plumbingDrains}
-              onChange={(e) => setFormData({...formData, plumbingDrains: e.target.value})}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Garbage disposal, water softener, etc."
-              value={formData.plumbingSpecial}
-              onChange={(e) => setFormData({...formData, plumbingSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'hvac':
-      return (
-        <div className="space-y-4">
-          {isGarage && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-              <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Garages typically don't require full HVAC systems. If you need heating/cooling, specify the type below.
-              </p>
-            </div>
-          )}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">System Type</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.hvacSystemType}
-              onChange={(e) => setFormData({...formData, hvacSystemType: e.target.value})}
-            >
-              <option value="">Select system type...</option>
-              {!isGarage && (
-                <>
-                  <option value="forced-air">Forced Air</option>
-                  <option value="heat-pump">Heat Pump</option>
-                  <option value="boiler">Boiler</option>
-                  <option value="ductless-mini-split">Ductless Mini-Split</option>
-                  <option value="radiant">Radiant</option>
-                </>
-              )}
-              {isGarage && (
-                <>
-                  <option value="none">No HVAC Required</option>
-                  <option value="space-heater">Space Heater</option>
-                  <option value="ductless-mini-split">Ductless Mini-Split</option>
-                  <option value="radiant-floor">Radiant Floor Heating</option>
-                </>
-              )}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Capacity (BTU/Tons)</label>
-              <Input
-                placeholder="36,000 BTU / 3 Tons"
-                value={formData.hvacCapacity}
-                onChange={(e) => setFormData({...formData, hvacCapacity: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Ductwork Required</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.hvacDuctwork}
-                onChange={(e) => setFormData({...formData, hvacDuctwork: e.target.value})}
-              >
-                <option value="">Select...</option>
-                <option value="new">New Ductwork</option>
-                <option value="existing">Use Existing</option>
-                <option value="modify">Modify Existing</option>
-                <option value="none">No Ductwork</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Zoning, smart thermostat, air quality, etc."
-              value={formData.hvacSpecial}
-              onChange={(e) => setFormData({...formData, hvacSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'framing':
-      return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Material Type</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.framingMaterial}
-              onChange={(e) => setFormData({...formData, framingMaterial: e.target.value})}
-            >
-              <option value="">Select material...</option>
-              <option value="wood-2x4">Wood 2x4</option>
-              <option value="wood-2x6">Wood 2x6</option>
-              <option value="steel">Steel Framing</option>
-              <option value="engineered">Engineered Lumber</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Complexity</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.framingComplexity}
-              onChange={(e) => setFormData({...formData, framingComplexity: e.target.value})}
-            >
-              <option value="standard">Standard</option>
-              <option value="complex">Complex</option>
-              <option value="custom">Custom Design</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Vaulted ceilings, load-bearing walls, etc."
-              value={formData.framingSpecial}
-              onChange={(e) => setFormData({...formData, framingSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'roofing':
-      return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Roofing Material</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.roofingMaterial}
-              onChange={(e) => setFormData({...formData, roofingMaterial: e.target.value})}
-            >
-              <option value="">Select material...</option>
-              <option value="asphalt-shingles">Asphalt Shingles</option>
-              <option value="metal">Metal</option>
-              <option value="tile">Tile</option>
-              <option value="slate">Slate</option>
-              <option value="flat-rubber">Flat/Rubber</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Roof Pitch</label>
-              <Input
-                placeholder="4/12, 6/12, etc."
-                value={formData.roofingPitch}
-                onChange={(e) => setFormData({...formData, roofingPitch: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Roof Size (sq ft)</label>
-              <Input
-                placeholder="2000"
-                type="number"
-                value={formData.roofingSize}
-                onChange={(e) => setFormData({...formData, roofingSize: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Skylights, chimneys, valleys, etc."
-              value={formData.roofingSpecial}
-              onChange={(e) => setFormData({...formData, roofingSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'foundation':
-      return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Foundation Type</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.foundationType}
-              onChange={(e) => setFormData({...formData, foundationType: e.target.value})}
-            >
-              <option value="">Select type...</option>
-              <option value="slab">Slab</option>
-              <option value="crawlspace">Crawlspace</option>
-              <option value="full-basement">Full Basement</option>
-              <option value="partial-basement">Partial Basement</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Foundation Size</label>
-              <Input
-                placeholder="30x40 ft"
-                value={formData.foundationSize}
-                onChange={(e) => setFormData({...formData, foundationSize: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Depth</label>
-              <Input
-                placeholder="4 ft"
-                value={formData.foundationDepth}
-                onChange={(e) => setFormData({...formData, foundationDepth: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Waterproofing, drainage, etc."
-              value={formData.foundationSpecial}
-              onChange={(e) => setFormData({...formData, foundationSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'drywall':
-      return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Area to Cover (sq ft)</label>
-            <Input
-              placeholder="2000"
-              type="number"
-              value={formData.drywallArea}
-              onChange={(e) => setFormData({...formData, drywallArea: e.target.value})}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Finish Level</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.drywallFinish}
-              onChange={(e) => setFormData({...formData, drywallFinish: e.target.value})}
-            >
-              <option value="">Select finish...</option>
-              <option value="level-1">Level 1 (Fire-rated)</option>
-              <option value="level-2">Level 2 (Utility)</option>
-              <option value="level-3">Level 3 (Light texture)</option>
-              <option value="level-4">Level 4 (Flat paint)</option>
-              <option value="level-5">Level 5 (Smooth finish)</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Soundproofing, moisture-resistant, etc."
-              value={formData.drywallSpecial}
-              onChange={(e) => setFormData({...formData, drywallSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'flooring':
-      return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Flooring Type</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.flooringType}
-              onChange={(e) => setFormData({...formData, flooringType: e.target.value})}
-            >
-              <option value="">Select type...</option>
-              <option value="hardwood">Hardwood</option>
-              <option value="laminate">Laminate</option>
-              <option value="vinyl">Vinyl</option>
-              <option value="tile">Tile</option>
-              <option value="carpet">Carpet</option>
-              <option value="concrete">Concrete</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Area (sq ft)</label>
-            <Input
-              placeholder="2000"
-              type="number"
-              value={formData.flooringArea}
-              onChange={(e) => setFormData({...formData, flooringArea: e.target.value})}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Underlayment, subfloor prep, etc."
-              value={formData.flooringSpecial}
-              onChange={(e) => setFormData({...formData, flooringSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    case 'painting':
-      return (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Area to Paint (sq ft)</label>
-              <Input
-                placeholder="2000"
-                type="number"
-                value={formData.paintingArea}
-                onChange={(e) => setFormData({...formData, paintingArea: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Number of Coats</label>
-              <Input
-                placeholder="2"
-                type="number"
-                value={formData.paintingCoats}
-                onChange={(e) => setFormData({...formData, paintingCoats: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requirements</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Primer needed, high ceilings, exterior, etc."
-              value={formData.paintingSpecial}
-              onChange={(e) => setFormData({...formData, paintingSpecial: e.target.value})}
-            />
-          </div>
-        </div>
-      );
-    
-    default:
-      return null;
-  }
-}
+// Trade-specific form fields removed - now using AI-guided flow
+// The AI asks smart questions based on the selected trade
 
 function ConstructionPageContent() {
   const searchParams = useSearchParams();
@@ -719,101 +237,17 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
     }
   };
 
+  // Simplified form data - AI asks the detailed questions
   const [formData, setFormData] = useState({
     projectName: "",
     projectType: "",
     squareFootage: "",
     location: "",
     province: "",
-    description: "",
-    // Trade-specific fields
-    electricalPanelSize: "",
-    electricalCircuits: "",
-    electricalOutlets: "",
-    electricalSwitches: "",
-    electricalLighting: "",
-    electricalSpecial: "",
-    // Plumbing
-    plumbingFixtures: "",
-    plumbingWaterHeater: "",
-    plumbingDrains: "",
-    plumbingSpecial: "",
-    // HVAC
-    hvacSystemType: "",
-    hvacCapacity: "",
-    hvacDuctwork: "",
-    hvacSpecial: "",
-    // Framing
-    framingMaterial: "",
-    framingComplexity: "",
-    framingSpecial: "",
-    // Roofing
-    roofingMaterial: "",
-    roofingPitch: "",
-    roofingSize: "",
-    roofingSpecial: "",
-    // Foundation
-    foundationType: "",
-    foundationSize: "",
-    foundationDepth: "",
-    foundationSpecial: "",
-    // Drywall
-    drywallArea: "",
-    drywallFinish: "",
-    drywallSpecial: "",
-    // Flooring
-    flooringType: "",
-    flooringArea: "",
-    flooringSpecial: "",
-    // Painting
-    paintingArea: "",
-    paintingCoats: "",
-    paintingSpecial: "",
-    // General
-    existingConditions: "",
-    accessIssues: "",
-    timeline: ""
+    description: ""
   });
 
-  const generateEstimate = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: `Trade-specific construction estimate:
-Selected Trade: ${selectedTrade}
-Project Name: ${formData.projectName || 'Unnamed Project'}
-Project Type: ${formData.projectType || 'Not specified'} ${formData.projectType === 'garage' ? '(This is a GARAGE build, not a house. Adjust questions and pricing accordingly.)' : ''}
-Location: ${formData.location || 'Not specified'}
-Province: ${formData.province || 'Not specified'}
-Square Footage: ${formData.squareFootage || 'N/A'} sq ft
-${getTradeSpecificPrompt(selectedTrade, formData)}
-Existing Conditions: ${formData.existingConditions || 'New construction'}
-Access Issues: ${formData.accessIssues || 'None'}
-Timeline: ${formData.timeline || 'Standard'}
-Additional Notes: ${formData.description || 'None'}
-
-IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.projectType === 'house' ? 'HOUSE/RESIDENTIAL HOME' : formData.projectType.toUpperCase()} project. Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete line-item breakdown appropriate for this project type.`,
-          businessType: 'construction',
-          optimizationType: 'estimate',
-          trade: selectedTrade
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setResult(data.result);
-        setTotalCost(data.totalCost || 0);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setResult('Error generating estimate. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Manual generateEstimate removed - now using AI-guided flow exclusively
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1112,69 +546,90 @@ IMPORTANT: This is a ${formData.projectType === 'garage' ? 'GARAGE' : formData.p
                 </div>
               )}
 
-              {/* Trade-Specific Questions - Only show when not in conversation mode */}
-              {!conversationMode && (
-                <>
-              {/* Trade-Specific Questions */}
-              {selectedTrade && (
+              {/* AI-Guided Flow Notice - Only show when not in conversation mode */}
+              {!conversationMode && selectedTrade && hasAccess && formData.projectType && formData.location && formData.squareFootage && formData.province && (
                 <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold mb-3">{selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1)} Trade Details</h3>
-                  {renderTradeSpecificFields(selectedTrade, formData, setFormData)}
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">🤖</span>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-purple-900">AI-Guided Estimate</h3>
+                        <p className="text-sm text-purple-700 mt-1">
+                          Click the button above to start. Our AI will ask you smart questions about:
+                        </p>
+                        <ul className="text-sm text-purple-600 mt-2 space-y-1">
+                          {selectedTrade === 'electrical' && (
+                            <>
+                              <li>• Panel size and circuits needed</li>
+                              <li>• EV charger, welder, or workshop requirements</li>
+                              <li>• Heat pump or special equipment</li>
+                              <li>• Underground runs if applicable</li>
+                            </>
+                          )}
+                          {selectedTrade === 'plumbing' && (
+                            <>
+                              <li>• Number and type of fixtures</li>
+                              <li>• Water heater requirements</li>
+                              <li>• Drain and water line needs</li>
+                            </>
+                          )}
+                          {selectedTrade === 'hvac' && (
+                            <>
+                              <li>• System type (heat pump, forced air, etc.)</li>
+                              <li>• Capacity needed for your space</li>
+                              <li>• Ductwork requirements</li>
+                            </>
+                          )}
+                          {selectedTrade === 'roofing' && (
+                            <>
+                              <li>• Roofing material preference</li>
+                              <li>• Roof size and pitch</li>
+                              <li>• Special features (skylights, etc.)</li>
+                            </>
+                          )}
+                          {selectedTrade === 'foundation' && (
+                            <>
+                              <li>• Foundation type (slab, basement, etc.)</li>
+                              <li>• Size and depth requirements</li>
+                              <li>• Waterproofing needs</li>
+                            </>
+                          )}
+                          {selectedTrade === 'framing' && (
+                            <>
+                              <li>• Framing material (wood, steel, etc.)</li>
+                              <li>• Wall heights and complexity</li>
+                              <li>• Load-bearing requirements</li>
+                            </>
+                          )}
+                          {selectedTrade === 'drywall' && (
+                            <>
+                              <li>• Area to cover</li>
+                              <li>• Finish level required</li>
+                              <li>• Special treatments</li>
+                            </>
+                          )}
+                          {selectedTrade === 'flooring' && (
+                            <>
+                              <li>• Flooring type preference</li>
+                              <li>• Area to cover</li>
+                              <li>• Subfloor preparation</li>
+                            </>
+                          )}
+                          {selectedTrade === 'painting' && (
+                            <>
+                              <li>• Area to paint</li>
+                              <li>• Number of coats</li>
+                              <li>• Special finishes</li>
+                            </>
+                          )}
+                        </ul>
+                        <p className="text-xs text-purple-500 mt-3">
+                          The AI automatically calculates panel sizes, pricing, and CEC code requirements based on your answers.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              {/* Additional Information */}
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold mb-3">Additional Information</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Existing Conditions</label>
-                    <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-                      placeholder="Describe existing conditions, what's already in place, etc."
-                      value={formData.existingConditions}
-                      onChange={(e) => setFormData({...formData, existingConditions: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Access Issues</label>
-                    <Input
-                      placeholder="Stairs, tight spaces, etc."
-                      value={formData.accessIssues}
-                      onChange={(e) => setFormData({...formData, accessIssues: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Timeline</label>
-                    <Input
-                      placeholder="Standard, Rush, Flexible"
-                      value={formData.timeline}
-                      onChange={(e) => setFormData({...formData, timeline: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Additional Notes</label>
-                    <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
-                      placeholder="Any other relevant information..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Generate Estimate Button - Only show in form mode */}
-              {!conversationMode && (
-                <Button 
-                  onClick={generateEstimate} 
-                  disabled={loading || !selectedTrade || !formData.location || !formData.projectType || !formData.province || !hasAccess}
-                  className="w-full"
-                >
-                  {loading ? 'Generating Estimate...' : hasAccess ? `Generate ${selectedTrade ? selectedTrade.charAt(0).toUpperCase() + selectedTrade.slice(1) : ''} Estimate` : 'Purchase Required'}
-                </Button>
-              )}
-                </>
               )}
             </CardContent>
           </Card>
