@@ -1106,42 +1106,35 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a team of specialized construction estimation agents:
+          const aiSystemPrompt = `You are a construction estimate reviewer for ${finalProvinceForAI}.
 
-1. **Code Compliance Agent**: Expert in ${finalProvinceForAI} building codes and regulations
-   - Verify all trades comply with ${finalProvinceForAI} building codes
-   - Check electrical code (CEC), plumbing code, fire code
-   - Ensure structural requirements are met
-   - Validate permit requirements
+CRITICAL INSTRUCTIONS:
+1. ONLY validate what is EXPLICITLY shown in the estimate - do NOT assume additional equipment or loads
+2. Do NOT invent requirements for EV chargers, welding equipment, or other items unless they are SPECIFICALLY listed in the project details
+3. Focus ONLY on verifying the estimate matches local codes for the ACTUAL scope provided
+4. If the estimate shows a basic garage with standard outlets, review it as a basic garage - not a workshop
 
-2. **Pricing Validation Agent**: Expert in ${finalProvinceForAI} construction pricing
-   - Verify labor rates are current for ${finalProvinceForAI} market
-   - Validate material costs against ${finalProvinceForAI} market rates
-   - Check if pricing aligns with industry standards
-   - Flag any unusually high or low costs
+Your review should:
+- Verify the quoted specifications meet ${finalProvinceForAI} code minimums for the STATED scope
+- Check if pricing is reasonable for ${finalProvinceForAI} (note: NL/Atlantic prices are 15-25% higher than mainland)
+- Identify any ACTUAL code issues with what was quoted (not imagined requirements)
+- Keep feedback concise and helpful
 
-3. **Trade-Specific Code Agent**: Expert in trade-specific codes
-   - Electrical: CEC (Canadian Electrical Code) compliance, including GFCI protection, dedicated circuits, proper burial depth
-   - Plumbing: NPC (National Plumbing Code) compliance
-   - Structural: NBC (National Building Code) compliance for load-bearing, wind, snow loads
-   - HVAC: Mechanical code compliance
-   - Fire: Fire code requirements, especially fire separation for detached structures
+Format your response as a brief, practical review - NOT a lengthy multi-agent report.
+If the estimate looks reasonable for the stated scope, say so clearly.
+Only flag issues that are REAL based on what was actually requested.`;
 
-IMPORTANT NOTES:
-- For garages: Windows and doors must meet NBC requirements for structural performance, safety glazing where required, and ventilation. Garages typically do NOT require egress windows (egress is for habitable spaces, not storage/workshop areas).
-- For garages: Focus on structural requirements, fire separation from main house, and proper electrical (GFCI, dedicated circuits for door openers/heaters).
-
-Review the provided estimate and provide:
-- Code compliance verification for ${finalProvinceForAI}
-- Pricing validation against ${finalProvinceForAI} market rates
-- Trade-specific code references
-- Any compliance issues or missing requirements
-- Recommended adjustments for accuracy
-
-Format your response with clear sections for each agent's findings.`;
-          
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Base Estimate:\n\n${baseResponse}\n\n\nProject Details:\n${prompt}\n\nProvince: ${finalProvinceForAI}\n\nPlease review this estimate with your specialized agents to ensure:\n1. Code compliance for ${finalProvinceForAI}\n2. Accurate pricing for ${finalProvinceForAI} market\n3. All trade-specific codes are followed`;
+          const enhancedPrompt = `Review this estimate for the STATED scope only:
+
+${baseResponse}
+
+Project Details:
+${prompt}
+
+Province: ${finalProvinceForAI}
+
+Provide a BRIEF, practical review. Do NOT assume additional equipment beyond what is listed.`;
           
           let aiEnhancement = '';
           if (hasAnthropic) {
