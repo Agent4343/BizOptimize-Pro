@@ -1130,18 +1130,28 @@ WHAT YOU MUST NOT DO:
 Keep your review SHORT (2-4 sentences). If the estimate looks good for the stated scope, just say so.`;
 
           // Enhanced prompt with province and project details
+          // IMPORTANT: Strip out conversation text - only include basic project info
+          // The conversation may contain questions about EV chargers/welders that the user declined
+          const projectTypeMatch = prompt.match(/Project Type:\s*([^\n]+)/i);
+          const sqftMatch = prompt.match(/Square Footage:\s*([^\n]+)/i);
+          const tradeMatch = prompt.match(/Selected Trade:\s*([^\n]+)/i);
+
+          const basicProjectInfo = `Project Type: ${projectTypeMatch?.[1] || 'Not specified'}
+Location: ${extractedLocationForAI || 'Not specified'}
+Province: ${finalProvinceForAI}
+Square Footage: ${sqftMatch?.[1] || 'Not specified'}
+Trade: ${tradeMatch?.[1] || 'Not specified'}`;
+
           const enhancedPrompt = `Here is the estimate to review:
 
 ${baseResponse}
 
 ---
-Customer's original request:
-${prompt}
+Basic project info (THIS is what the customer actually requested):
+${basicProjectInfo}
 ---
 
-Province: ${finalProvinceForAI}
-
-REMEMBER: Only comment on what the customer actually asked for. If they asked for a basic garage, review it as a basic garage. Do NOT mention EV chargers, workshops, 200A service, or anything else they did not request. Keep your review to 2-4 sentences.`;
+REMEMBER: Only comment on what is shown above. The customer requested a basic ${projectTypeMatch?.[1] || 'project'}. Do NOT invent EV chargers, workshops, 200A upgrades, or anything else. Keep your review to 2-4 sentences.`;
           
           let aiEnhancement = '';
           if (hasAnthropic) {
