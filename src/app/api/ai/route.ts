@@ -1552,4 +1552,4 @@ export async function GET() {
     description: 'AI-powered business optimization API',
     status: 'active'
   });
-}// Build trigger 1766949627
+}
