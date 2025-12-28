@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Helper to check if error is "table doesn't exist"
+function isTableNotExistError(error: any): boolean {
+  const message = error?.message || '';
+  return message.includes('does not exist') ||
+         message.includes('relation') ||
+         message.includes('P2021') ||
+         message.includes('P2010');
+}
+
 // GET - Fetch contractor profile
 export async function GET() {
   try {
     // Return null if database is not configured
     if (!prisma) {
-      return NextResponse.json({ contractor: null, message: 'Database not configured' });
+      return NextResponse.json({ contractor: null, message: 'Database not configured. Add DATABASE_URL to enable settings.' });
     }
 
     // For now, get the first contractor (single-tenant)
@@ -25,11 +34,20 @@ export async function GET() {
     }
 
     return NextResponse.json({ contractor });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching contractor:', error);
+
+    // Check if tables don't exist yet
+    if (isTableNotExistError(error)) {
+      return NextResponse.json({
+        contractor: null,
+        message: 'Database tables not created yet. Run: npx prisma db push'
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch contractor profile' },
-      { status: 500 }
+      { contractor: null, error: 'Database error. Check DATABASE_URL configuration.' },
+      { status: 200 } // Return 200 so the UI can handle it gracefully
     );
   }
 }
@@ -108,10 +126,18 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ contractor });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating contractor:', error);
+
+    if (isTableNotExistError(error)) {
+      return NextResponse.json(
+        { error: 'Database tables not created. Run: npx prisma db push' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create contractor profile' },
+      { error: 'Failed to create contractor profile. Check database configuration.' },
       { status: 500 }
     );
   }
