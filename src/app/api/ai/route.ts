@@ -1106,35 +1106,42 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
           const finalProvinceForAI: string = providedProvinceForAI || extractProvince(extractedLocationForAI);
           
           // Multi-agent system prompt for compliance and pricing validation
-          const aiSystemPrompt = `You are a construction estimate reviewer for ${finalProvinceForAI}.
+          const aiSystemPrompt = `You are reviewing a construction estimate for ${finalProvinceForAI}.
 
-CRITICAL INSTRUCTIONS:
-1. ONLY validate what is EXPLICITLY shown in the estimate - do NOT assume additional equipment or loads
-2. Do NOT invent requirements for EV chargers, welding equipment, or other items unless they are SPECIFICALLY listed in the project details
-3. Focus ONLY on verifying the estimate matches local codes for the ACTUAL scope provided
-4. If the estimate shows a basic garage with standard outlets, review it as a basic garage - not a workshop
+ABSOLUTELY CRITICAL - READ THIS CAREFULLY:
+- You MUST ONLY review what is in the estimate. DO NOT INVENT OR ASSUME ANYTHING.
+- The customer did NOT request: EV chargers, welding equipment, 200A service, workshop circuits, or anything else not explicitly listed.
+- If the estimate shows a basic garage, it IS a basic garage. Period. Do not imagine it's a workshop.
+- Do NOT say "you requested" for anything that is not explicitly in the project details.
+- Do NOT suggest the estimate is missing things the customer never asked for.
 
-Your review should:
-- Verify the quoted specifications meet ${finalProvinceForAI} code minimums for the STATED scope
-- Check if pricing is reasonable for ${finalProvinceForAI} (note: NL/Atlantic prices are 15-25% higher than mainland)
-- Identify any ACTUAL code issues with what was quoted (not imagined requirements)
-- Keep feedback concise and helpful
+WHAT YOU SHOULD DO:
+1. Confirm the estimate looks reasonable for the ACTUAL stated scope
+2. Check that the specifications meet ${finalProvinceForAI} code minimums for what WAS requested
+3. Note if pricing seems fair for ${finalProvinceForAI} (Atlantic Canada is 15-25% higher than mainland)
+4. Only flag REAL issues with what was actually quoted
 
-Format your response as a brief, practical review - NOT a lengthy multi-agent report.
-If the estimate looks reasonable for the stated scope, say so clearly.
-Only flag issues that are REAL based on what was actually requested.`;
+WHAT YOU MUST NOT DO:
+- Do NOT invent requirements (EV chargers, 200A, welding, workshops, etc.)
+- Do NOT claim there's a "scope mismatch" unless the customer's explicit request doesn't match
+- Do NOT suggest upgrades the customer didn't ask for
+- Do NOT write lengthy multi-agent reports
+
+Keep your review SHORT (2-4 sentences). If the estimate looks good for the stated scope, just say so.`;
 
           // Enhanced prompt with province and project details
-          const enhancedPrompt = `Review this estimate for the STATED scope only:
+          const enhancedPrompt = `Here is the estimate to review:
 
 ${baseResponse}
 
-Project Details:
+---
+Customer's original request:
 ${prompt}
+---
 
 Province: ${finalProvinceForAI}
 
-Provide a BRIEF, practical review. Do NOT assume additional equipment beyond what is listed.`;
+REMEMBER: Only comment on what the customer actually asked for. If they asked for a basic garage, review it as a basic garage. Do NOT mention EV chargers, workshops, 200A service, or anything else they did not request. Keep your review to 2-4 sentences.`;
           
           let aiEnhancement = '';
           if (hasAnthropic) {
@@ -1146,7 +1153,7 @@ Provide a BRIEF, practical review. Do NOT assume additional equipment beyond wha
           }
           
           // Combine base estimate with AI agent enhancements
-          defaultResponse = baseResponse + `\n\n---\n\n## Compliance & Pricing Validation (${finalProvinceForAI})\n\n` + aiEnhancement;
+          defaultResponse = baseResponse + `\n\n---\n\n## AI Review\n\n` + aiEnhancement;
         } catch (aiError) {
           console.error('AI enhancement error, using base estimate:', aiError);
           // Use base estimate if AI fails
