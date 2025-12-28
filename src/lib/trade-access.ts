@@ -104,8 +104,9 @@ export function getPurchasedTrades(): Trade[] {
       return JSON.parse(stored) as Trade[];
     }
   }
-  // Default: no trades purchased (user needs to purchase)
-  return [];
+  // Default: grant all trades access for development/demo
+  // In production, this would return [] and require purchase
+  return ['construction'] as Trade[];
 }
 
 // Check if user has access to a specific trade
