@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// Helper to check if error is "table doesn't exist"
-function isTableNotExistError(error: any): boolean {
+// Helper to check if error is database-related (table doesn't exist, connection issue, etc.)
+function isDatabaseError(error: any): boolean {
   const message = error?.message || '';
+  const code = error?.code || '';
+
+  // Check for common Prisma/PostgreSQL errors
   return message.includes('does not exist') ||
          message.includes('relation') ||
-         message.includes('P2021') ||
-         message.includes('P2010');
+         message.includes('ECONNREFUSED') ||
+         message.includes('connection') ||
+         code === 'P2021' ||  // Table doesn't exist
+         code === 'P2010' ||  // Raw query failed
+         code === 'P2002' ||  // Unique constraint
+         code === 'P1001' ||  // Can't reach database
+         code === 'P1002' ||  // Database timeout
+         /P\d{4}/.test(code); // Any Prisma error code
 }
 
 // GET - Fetch contractor profile
@@ -19,7 +28,6 @@ export async function GET() {
     }
 
     // For now, get the first contractor (single-tenant)
-    // In production, you'd use auth to get the current user's contractor
     const contractor = await prisma.contractor.findFirst({
       include: {
         laborRates: true,
@@ -37,18 +45,13 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error fetching contractor:', error);
 
-    // Check if tables don't exist yet
-    if (isTableNotExistError(error)) {
-      return NextResponse.json({
-        contractor: null,
-        message: 'Database tables not created yet. Run: npx prisma db push'
-      });
-    }
-
-    return NextResponse.json(
-      { contractor: null, error: 'Database error. Check DATABASE_URL configuration.' },
-      { status: 200 } // Return 200 so the UI can handle it gracefully
-    );
+    // Always return 200 with helpful message for any database error
+    return NextResponse.json({
+      contractor: null,
+      message: isDatabaseError(error)
+        ? 'Database tables not created yet. Run: npx prisma db push'
+        : 'Database connection error. Check configuration.'
+    });
   }
 }
 
@@ -129,16 +132,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating contractor:', error);
 
-    if (isTableNotExistError(error)) {
-      return NextResponse.json(
-        { error: 'Database tables not created. Run: npx prisma db push' },
-        { status: 503 }
-      );
-    }
+    // Return helpful error message for database errors
+    const errorMessage = isDatabaseError(error)
+      ? 'Database tables not created. Run: npx prisma db push'
+      : 'Failed to create contractor profile. Check database configuration.';
 
     return NextResponse.json(
-      { error: 'Failed to create contractor profile. Check database configuration.' },
-      { status: 500 }
+      { error: errorMessage },
+      { status: 503 }
     );
   }
 }
