@@ -603,8 +603,35 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
         
         plumbing: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
-          const fixturesMatch = prompt.match(/Fixtures.*?(\d+)/i);
-          const fixtures = fixturesMatch ? parseInt(fixturesMatch[1]) : (isGarage ? 0 : 5);
+
+          // Fix: Use more specific regex patterns to avoid matching square footage
+          // Look for explicit fixture count patterns like "Fixtures: 5" or "5 fixtures"
+          const fixturesColonMatch = prompt.match(/Fixtures:\s*(\d+)/i);
+          const fixturesCountMatch = prompt.match(/(\d+)\s*(?:plumbing\s*)?fixtures/i);
+
+          // Detect utility sink requests for garages
+          const wantsUtilitySink = /utility\s*sink|laundry\s*sink|slop\s*sink|garage\s*sink/i.test(prompt) &&
+            !/no\s+utility|don't\s+need\s+utility|not\s+need.*utility|no\s+sink/i.test(prompt);
+
+          // Detect bathroom/washroom for garages that want them
+          const wantsBathroom = /bathroom|washroom|toilet|half\s*bath/i.test(prompt) &&
+            !/no\s+bathroom|don't\s+need\s+bathroom|no\s+toilet/i.test(prompt);
+
+          // Calculate fixtures based on explicit count or detected needs
+          let fixtures: number;
+          if (fixturesColonMatch) {
+            fixtures = parseInt(fixturesColonMatch[1]);
+          } else if (fixturesCountMatch && parseInt(fixturesCountMatch[1]) <= 50) {
+            // Only use if count is reasonable (<=50), not square footage
+            fixtures = parseInt(fixturesCountMatch[1]);
+          } else if (isGarage) {
+            // For garages: 0 by default, 1 for utility sink, 3 for bathroom (toilet, sink, maybe shower)
+            fixtures = wantsBathroom ? 3 : (wantsUtilitySink ? 1 : 0);
+          } else {
+            // Default for residential
+            fixtures = 5;
+          }
+
           const waterHeater = /water.*heater/i.test(prompt) && !isGarage;
           
           // For garages, typically only utility sink if any plumbing
@@ -621,13 +648,24 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}`;
           totalCost = Math.round(totalCost * costMultiplier);
           const potentialSavings = Math.round(totalCost * 0.15);
           
+          // Generate fixture description based on what was detected
+          const getFixtureDescription = () => {
+            if (isGarage) {
+              if (fixtures === 0) return 'None required';
+              if (wantsBathroom) return `${fixtures} (Bathroom: toilet, sink${fixtures > 2 ? ', shower' : ''})`;
+              if (wantsUtilitySink) return '1 (Utility sink)';
+              return `${fixtures}`;
+            }
+            return `${fixtures}`;
+          };
+
           return `# Plumbing Estimate
 
 ## Project Details
 - **Location**: ${locationValue || 'Not specified'}
 - **Province**: ${provinceValue}
 - **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Fixtures**: ${fixtures}${isGarage ? ' (Utility sink if applicable)' : ''}
+- **Fixtures**: ${getFixtureDescription()}
 - **Water Heater**: ${waterHeater ? 'Yes' : 'No'}${isGarage ? ' (Not typically required for garages)' : ''}
 
 ## Detailed Cost Breakdown
