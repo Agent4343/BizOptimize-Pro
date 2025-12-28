@@ -398,8 +398,10 @@ export async function POST(request: NextRequest) {
           const travelCost = Math.round(travelHours * projectDays * travelRate); // Travel charge per day
 
           // Labor cost breakdown
-          const journeymanHours = totalLaborHours;
-          const apprenticeHours = needsApprentice ? Math.round(totalLaborHours * 0.7) : 0;
+          // Bill based on actual project days, not theoretical task hours
+          // With 2-person crew, work gets done faster
+          const journeymanHours = projectDays * workHoursPerDay; // Actual on-site hours
+          const apprenticeHours = needsApprentice ? Math.round(projectDays * workHoursPerDay * 0.85) : 0; // Apprentice ~85% of journeyman time
           const journeymanCost = Math.round(journeymanHours * journeymanRate);
           const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
           const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
@@ -550,7 +552,7 @@ ${wantsEVCharger ? '| **EV Charger Circuit** | 240V/50A | N/A |\n' : ''}${wantsW
 | **Lead Electrician** | Licensed Journeyman (Red Seal) |
 | **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
 | **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
-| **Total Labor Hours** | ${totalLaborHours.toFixed(1)} hours |
+| **Billable Hours** | ${journeymanHours}${needsApprentice ? ` + ${apprenticeHours} apprentice` : ''} hours |
 | **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
 
 ### Work Breakdown Schedule
