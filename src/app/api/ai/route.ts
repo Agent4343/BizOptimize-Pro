@@ -360,32 +360,31 @@ export async function POST(request: NextRequest) {
           const cecExpectedOutlets = isGarage ? Math.ceil(sqft / 60) : Math.ceil(sqft / 60);
           const cecExpectedSwitches = isGarage ? Math.ceil(sqft / 200) : Math.ceil(sqft / 120);
 
-          // Labor hour calculations (industry standard times)
-          const panelHours = panelSize >= 200 ? 6 : 4; // Hours to install panel
-          const circuitHoursEach = 0.75; // 45 min per circuit
-          const outletHoursEach = 0.5; // 30 min per outlet
-          const switchHoursEach = 0.4; // 24 min per switch
-          const wiringHoursPerSqft = 0.015; // Rough-in wiring time
+          // Labor hour calculations (realistic - no double counting)
+          // Circuit hours INCLUDE outlet/switch installation, not separate
+          const panelHours = panelSize >= 200 ? 5 : 3; // Hours to install panel
+          const circuitHoursEach = isGarage ? 0.6 : 0.75; // Per circuit (rough-in + device)
+          const lightingHours = isGarage ? 2 : 4; // Lighting installation
 
           // Special equipment labor hours
-          const evChargerHours = wantsEVCharger ? 3 : 0; // 3 hrs for 240V/50A EV circuit
-          const welderHours = wantsWelder ? 2.5 : 0; // 2.5 hrs for welder outlet
-          const heatPumpHours = wantsHeatPump ? 2 : 0; // 2 hrs for heat pump circuit
-          const workshopHours = wantsWorkshop ? 3 : 0; // 3 hrs for extra workshop circuits
-          const undergroundHours = hasUndergroundRun ? (runLength > 0 ? Math.ceil(runLength / 20) : 4) : 0; // ~1hr per 20ft + trenching
+          const evChargerHours = wantsEVCharger ? 2.5 : 0; // 240V/50A EV circuit
+          const welderHours = wantsWelder ? 2 : 0; // Welder outlet
+          const heatPumpHours = wantsHeatPump ? 1.5 : 0; // Heat pump circuit
+          const workshopHours = wantsWorkshop ? 2 : 0; // Extra workshop circuits
+          const undergroundHours = hasUndergroundRun ? (runLength > 0 ? Math.ceil(runLength / 25) : 3) : 0;
 
           const totalCircuitHours = Math.round(circuits * circuitHoursEach * 10) / 10;
-          const totalOutletHours = Math.round(outlets * outletHoursEach * 10) / 10;
-          const totalSwitchHours = Math.round(switches * switchHoursEach * 10) / 10;
-          const totalWiringHours = Math.round(sqft * wiringHoursPerSqft * 10) / 10;
+          const totalOutletHours = 0; // Included in circuit hours
+          const totalSwitchHours = 0; // Included in circuit hours
+          const totalWiringHours = lightingHours; // Just lighting, circuits cover wire runs
           const specialEquipmentHours = evChargerHours + welderHours + heatPumpHours + workshopHours + undergroundHours;
-          const totalLaborHours = panelHours + totalCircuitHours + totalOutletHours + totalSwitchHours + totalWiringHours + specialEquipmentHours;
+          const totalLaborHours = panelHours + totalCircuitHours + totalWiringHours + specialEquipmentHours;
 
           // Crew size calculation (based on project complexity)
           // Use contractor settings if available, otherwise use defaults
-          const journeymanRate = contractorSettings?.journeymanRate || 85; // $/hour CAD
-          const apprenticeRate = contractorSettings?.apprenticeRate || 45; // $/hour CAD
-          const travelRate = contractorSettings?.travelRate || 65; // $/hour CAD
+          const journeymanRate = contractorSettings?.journeymanRate || 75; // $/hour CAD
+          const apprenticeRate = contractorSettings?.apprenticeRate || 40; // $/hour CAD
+          const travelRate = contractorSettings?.travelRate || 55; // $/hour CAD
           const needsApprentice = totalLaborHours > 16 || circuits > 10 || needsHeavyDuty;
           const crewSize = needsApprentice ? 2 : 1;
           const workHoursPerDay = 8;
@@ -406,18 +405,18 @@ export async function POST(request: NextRequest) {
           const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
           const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
 
-          // Material costs
-          const panelMaterial = panelSize >= 200 ? 1200 : (panelSize >= 150 ? 900 : 650);
-          const circuitMaterial = circuits * 45; // Wire, breakers per circuit
-          const outletMaterial = outlets * 25; // Outlet, box, cover
-          const switchMaterial = switches * 20; // Switch, box, cover
-          const wireMaterial = Math.round(sqft * 0.85); // Romex, connectors, etc.
+          // Material costs (realistic 2024 pricing)
+          const panelMaterial = panelSize >= 200 ? 950 : (panelSize >= 150 ? 700 : 450);
+          const circuitMaterial = circuits * 32; // Wire, breakers per circuit
+          const outletMaterial = outlets * 18; // Outlet, box, cover
+          const switchMaterial = switches * 15; // Switch, box, cover
+          const wireMaterial = Math.round(sqft * (isGarage ? 0.45 : 0.70)); // Romex, connectors
 
           // Special equipment materials
-          const evChargerMaterial = wantsEVCharger ? 450 : 0; // 50A outlet, 6/3 wire, breaker
-          const welderMaterial = wantsWelder ? 350 : 0; // 50A outlet, 6/3 wire, breaker
-          const heatPumpMaterial = wantsHeatPump ? 280 : 0; // Disconnect, whip, breaker
-          const workshopMaterial = wantsWorkshop ? 200 : 0; // Extra 20A circuits materials
+          const evChargerMaterial = wantsEVCharger ? 320 : 0; // 50A outlet, 6/3 wire, breaker
+          const welderMaterial = wantsWelder ? 280 : 0; // 50A outlet, 6/3 wire, breaker
+          const heatPumpMaterial = wantsHeatPump ? 220 : 0; // Disconnect, whip, breaker
+          const workshopMaterial = wantsWorkshop ? 150 : 0; // Extra 20A circuits materials
 
           // Underground run materials (if applicable)
           const undergroundMaterial = hasUndergroundRun ? (
@@ -1077,37 +1076,37 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       const wallArea = perimeter * wallHeight;
 
       // ============ MATERIALS ============
-      // Lumber: studs, plates, headers
+      // Lumber: studs, plates, headers (realistic 2024 pricing)
       const studSpacing = 16; // 16" OC
-      const studsNeeded = Math.ceil((perimeter * 12) / studSpacing) + 20; // +20 for corners, headers, cripples
-      const studCost = studsNeeded * (isGarage ? 8 : 10); // $8-10 per stud
-      const platesCost = Math.round(perimeter * 2 * 3 * 1.5); // 2 plates (top/bottom) x 3 (double top) x $1.50/lf
-      const headersCost = Math.round(isGarage ? 250 : 500); // Headers for doors/windows
+      const studsNeeded = Math.ceil((perimeter * 12) / studSpacing) + 16; // +16 for corners, headers, cripples
+      const studCost = studsNeeded * (isGarage ? 5.50 : 7); // $5.50-7 per 2x4/2x6 stud
+      const platesCost = Math.round(perimeter * 3 * 1.10); // 3 plates (bot + double top) x $1.10/lf
+      const headersCost = Math.round(isGarage ? 120 : 350); // Headers for doors/windows
 
-      const lumberTotal = studCost + platesCost + headersCost;
+      const lumberTotal = Math.round(studCost + platesCost + headersCost);
 
       // Roof structure: trusses or rafters
       const trussCount = Math.ceil(sideLength / 2) + 1; // Trusses at 24" OC
       const trussCost = isStickFrame
-        ? Math.round(sqft * 6) // Stick frame is more labor intensive, less material cost upfront
-        : Math.round(trussCount * (isGarage ? 180 : 250)); // Prefab trusses $180-250 each
+        ? Math.round(sqft * 3.50) // Stick frame materials
+        : Math.round(trussCount * (isGarage ? 110 : 180)); // Prefab trusses $110-180 each
 
       // Sheathing: walls and roof
       const sheetsWall = Math.ceil(wallArea / 32); // 4x8 sheets = 32 sq ft
       const sheetsRoof = Math.ceil(sqft * 1.15 / 32); // 15% extra for roof pitch
-      const sheetCost = 45; // OSB/plywood per sheet
+      const sheetCost = 32; // 7/16" OSB per sheet
       const sheathingTotal = (sheetsWall + sheetsRoof) * sheetCost;
 
       // Fasteners & hardware
-      const fastenersCost = Math.round(sqft * 1.5); // Nails, screws
-      const hardwareCost = Math.round(isGarage ? 400 : 800); // Hurricane straps, anchors, joist hangers
+      const fastenersCost = Math.round(sqft * 0.50); // Nails, screws
+      const hardwareCost = Math.round(isGarage ? 200 : 450); // Hurricane straps, anchors, joist hangers
 
       const materialsTotal = lumberTotal + trussCost + sheathingTotal + fastenersCost + hardwareCost;
 
       // ============ LABOR ============
       // Framing labor: walls, standing, roof set
-      const laborRate = 65; // $/hour for framer
-      const hoursPerSqft = isGarage ? 0.15 : 0.20; // Hours per sq ft
+      const laborRate = 48; // $/hour for framer (realistic rate)
+      const hoursPerSqft = isGarage ? 0.08 : 0.12; // Hours per sq ft (garage is simpler)
       const framingHours = Math.round(sqft * hoursPerSqft);
       const crewSize = sqft > 400 ? 3 : 2;
       const laborDays = Math.ceil(framingHours / (8 * crewSize));
