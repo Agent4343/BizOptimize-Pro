@@ -1060,19 +1060,207 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       return generateConstructionEstimate(promptText);
     };
 
+    // Generate Framing Only estimate (specialized scope)
+    const generateFramingOnlyEstimate = (promptText: string, sqft: number, isGarage: boolean) => {
+      // Wall height detection
+      const wallHeightMatch = promptText.match(/(\d+)['′]?\s*(?:foot|ft|feet)?\s*(?:wall|ceiling|height)/i);
+      const wallHeight = wallHeightMatch ? parseInt(wallHeightMatch[1]) : (isGarage ? 10 : 9);
+
+      // Roof type detection
+      const isTruss = /truss/i.test(promptText);
+      const isStickFrame = /stick\s*frame|rafter|conventional/i.test(promptText);
+      const roofType = isStickFrame ? 'Stick Frame (Rafters)' : 'Prefab Trusses';
+
+      // Calculate wall perimeter (assume roughly square for estimation)
+      const sideLength = Math.sqrt(sqft);
+      const perimeter = sideLength * 4;
+      const wallArea = perimeter * wallHeight;
+
+      // ============ MATERIALS ============
+      // Lumber: studs, plates, headers
+      const studSpacing = 16; // 16" OC
+      const studsNeeded = Math.ceil((perimeter * 12) / studSpacing) + 20; // +20 for corners, headers, cripples
+      const studCost = studsNeeded * (isGarage ? 8 : 10); // $8-10 per stud
+      const platesCost = Math.round(perimeter * 2 * 3 * 1.5); // 2 plates (top/bottom) x 3 (double top) x $1.50/lf
+      const headersCost = Math.round(isGarage ? 250 : 500); // Headers for doors/windows
+
+      const lumberTotal = studCost + platesCost + headersCost;
+
+      // Roof structure: trusses or rafters
+      const trussCount = Math.ceil(sideLength / 2) + 1; // Trusses at 24" OC
+      const trussCost = isStickFrame
+        ? Math.round(sqft * 6) // Stick frame is more labor intensive, less material cost upfront
+        : Math.round(trussCount * (isGarage ? 180 : 250)); // Prefab trusses $180-250 each
+
+      // Sheathing: walls and roof
+      const sheetsWall = Math.ceil(wallArea / 32); // 4x8 sheets = 32 sq ft
+      const sheetsRoof = Math.ceil(sqft * 1.15 / 32); // 15% extra for roof pitch
+      const sheetCost = 45; // OSB/plywood per sheet
+      const sheathingTotal = (sheetsWall + sheetsRoof) * sheetCost;
+
+      // Fasteners & hardware
+      const fastenersCost = Math.round(sqft * 1.5); // Nails, screws
+      const hardwareCost = Math.round(isGarage ? 400 : 800); // Hurricane straps, anchors, joist hangers
+
+      const materialsTotal = lumberTotal + trussCost + sheathingTotal + fastenersCost + hardwareCost;
+
+      // ============ LABOR ============
+      // Framing labor: walls, standing, roof set
+      const laborRate = 65; // $/hour for framer
+      const hoursPerSqft = isGarage ? 0.15 : 0.20; // Hours per sq ft
+      const framingHours = Math.round(sqft * hoursPerSqft);
+      const crewSize = sqft > 400 ? 3 : 2;
+      const laborDays = Math.ceil(framingHours / (8 * crewSize));
+      const laborCost = Math.round(framingHours * laborRate);
+
+      // ============ INSPECTION ============
+      const framingInspection = 200; // Framing inspection only
+
+      // ============ TOTALS ============
+      const directCosts = materialsTotal + laborCost + framingInspection;
+      const overheadPercent = 12;
+      const profitPercent = 10;
+      const overheadAmount = Math.round(directCosts * (overheadPercent / 100));
+      const profitAmount = Math.round(directCosts * (profitPercent / 100));
+      const overheadAndProfit = overheadAmount + profitAmount;
+
+      const framingTotal = directCosts + overheadAndProfit;
+      const costPerSqft = Math.round(framingTotal / sqft);
+
+      // ============ INTERNAL METRICS ============
+      const grossProfit = overheadAndProfit;
+      const profitMargin = Math.round((grossProfit / framingTotal) * 100);
+      const riskLevel = profitMargin < 15 ? 'High' : (profitMargin < 20 ? 'Medium' : 'Low');
+
+      const projectType = isGarage ? 'Garage' : 'Residential';
+
+      return `# FRAMING ESTIMATE
+**Scope: Framing Only**
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${projectType} |
+| **Square Footage** | ${sqft.toLocaleString()} sq ft |
+| **Wall Height** | ${wallHeight} ft |
+| **Roof Type** | ${roofType} |
+| **Perimeter** | ${Math.round(perimeter)} linear ft |
+
+---
+
+## Framing Scope Includes
+
+- Bottom plates, top plates (double), studs at 16" OC
+- Headers for door/window openings
+- Roof structure (${roofType.toLowerCase()})
+- Wall sheathing (OSB/plywood)
+- Roof sheathing (OSB/plywood)
+- Fasteners (nails, screws, connectors)
+- Hardware (hurricane straps, anchors, joist hangers)
+- Labor to frame walls, stand walls, set roof
+
+**NOT INCLUDED:** Foundation, roofing shingles/metal, siding, electrical, insulation, drywall, paint, flooring, doors, windows
+
+---
+
+## Materials Breakdown
+
+| Item | Quantity | Amount |
+|------|----------|--------|
+| Lumber (studs, plates, headers) | ${studsNeeded} studs + plates | $${lumberTotal.toLocaleString()}.00 |
+| Roof Structure (${roofType}) | ${isStickFrame ? 'Rafters/ridgeboard' : trussCount + ' trusses'} | $${trussCost.toLocaleString()}.00 |
+| Wall Sheathing | ${sheetsWall} sheets | $${(sheetsWall * sheetCost).toLocaleString()}.00 |
+| Roof Sheathing | ${sheetsRoof} sheets | $${(sheetsRoof * sheetCost).toLocaleString()}.00 |
+| Fasteners | - | $${fastenersCost.toLocaleString()}.00 |
+| Hardware (straps, anchors, hangers) | - | $${hardwareCost.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${materialsTotal.toLocaleString()}.00** |
+
+---
+
+## Labor Breakdown
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| Framing Crew (${crewSize} person) | ${framingHours} | $${laborRate}.00/hr | $${laborCost.toLocaleString()}.00 |
+| **Estimated Duration** | ${laborDays} day${laborDays > 1 ? 's' : ''} | | |
+| **Labor Subtotal** | | | **$${laborCost.toLocaleString()}.00** |
+
+---
+
+## Other Costs
+
+| Item | Amount |
+|------|--------|
+| Framing Inspection | $${framingInspection.toLocaleString()}.00 |
+| **Subtotal** | **$${framingInspection.toLocaleString()}.00** |
+
+---
+
+## Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+
+---
+
+## FRAMING TOTAL
+
+| Category | Amount |
+|----------|-------:|
+| Materials | $${materialsTotal.toLocaleString()}.00 |
+| Labor | $${laborCost.toLocaleString()}.00 |
+| Inspection | $${framingInspection.toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+| | |
+| **FRAMING TOTAL** | **$${framingTotal.toLocaleString()}.00 CAD** |
+| **Cost per Sq Ft** | **$${costPerSqft}/sq ft** |
+
+---
+
+## INTERNAL CONTRACTOR SUMMARY
+*This section is for contractor use only - NOT included in customer-facing quote*
+
+| Metric | Value |
+|--------|-------|
+| **Direct Costs** | $${directCosts.toLocaleString()}.00 |
+| Materials | $${materialsTotal.toLocaleString()}.00 |
+| Labor | $${laborCost.toLocaleString()}.00 |
+| Inspection | $${framingInspection.toLocaleString()}.00 |
+| | |
+| **Overhead (${overheadPercent}%)** | $${overheadAmount.toLocaleString()}.00 |
+| **Profit (${profitPercent}%)** | $${profitAmount.toLocaleString()}.00 |
+| | |
+| **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
+| **Profit Margin** | ${profitMargin}% |
+| **Risk Level** | ${riskLevel} |
+`;
+    };
+
     // Generate dynamic construction estimate based on input (for full construction)
     const generateConstructionEstimate = (promptText: string) => {
       // Extract square footage from prompt
       const sqftMatch = promptText.match(/(\d+)\s*(?:sq\s*ft|square\s*feet|square\s*footage)/i);
       const sqft = sqftMatch ? parseInt(sqftMatch[1]) : 2000; // Default to 2000 if not found
-      
+
       // Determine project type (garage, house, etc.)
       // Check both the prompt text and explicit project type field
       const projectTypeMatch = promptText.match(/Project Type:\s*([^\n]+)/i);
       const projectTypeValue = projectTypeMatch ? projectTypeMatch[1].toLowerCase() : '';
       const isGarage = /garage/i.test(promptText) || projectTypeValue.includes('garage');
       const isHouse = (/house|home|residential/i.test(promptText) && !isGarage) || projectTypeValue.includes('house') || projectTypeValue.includes('residential');
-      
+
+      // Detect scope - Framing Only
+      const isFramingOnly = /framing\s*only|frame\s*only|framing\s*package|just.*framing/i.test(promptText);
+
+      // If Framing Only scope, generate specialized estimate
+      if (isFramingOnly) {
+        return generateFramingOnlyEstimate(promptText, sqft, isGarage);
+      }
+
       // Cost per sq ft varies by project type
       // Garage: $40-60/sq ft, House: $150-300/sq ft
       const costPerSqft = isGarage ? 50 : (isHouse ? 200 : 150);
