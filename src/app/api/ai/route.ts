@@ -198,6 +198,26 @@ function extractProvince(location: string): string {
   return extractProvinceEnhanced(location).province;
 }
 
+// Get province-specific electrical inspection authority name
+function getInspectionAuthority(province: string): string {
+  const authorities: Record<string, string> = {
+    'Ontario': 'ESA Inspection',
+    'British Columbia': 'Technical Safety BC Inspection',
+    'Alberta': 'Safety Codes Inspection',
+    'Saskatchewan': 'TSASK Inspection',
+    'Manitoba': 'Manitoba Hydro Inspection',
+    'Quebec': 'RBQ Inspection',
+    'Nova Scotia': 'Provincial Electrical Inspection',
+    'New Brunswick': 'Provincial Electrical Inspection',
+    'Prince Edward Island': 'Provincial Electrical Inspection',
+    'Newfoundland and Labrador': 'Provincial Electrical Inspection',
+    'Yukon': 'Territorial Electrical Inspection',
+    'Northwest Territories': 'Territorial Electrical Inspection',
+    'Nunavut': 'Territorial Electrical Inspection'
+  };
+  return authorities[province] || 'Electrical Inspection';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -595,7 +615,7 @@ ${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $
 | Item | Amount |
 |------|--------|
 | Electrical Permit | $${permitCost.toLocaleString()}.00 |
-| ESA Inspection Fee | $${inspectionCost.toLocaleString()}.00 |
+| ${getInspectionAuthority(provinceValue)} | $${inspectionCost.toLocaleString()}.00 |
 | **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
 
 ### D. Overhead & Profit
@@ -640,10 +660,11 @@ ${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $
 
 ${generateCodeComplianceSection(provinceValue, 'electrical')}
 
+<!-- INTERNAL_START -->
 ---
 
 ## INTERNAL CONTRACTOR SUMMARY
-*This section is for contractor use only - NOT included in customer-facing quote*
+**FOR CONTRACTOR USE ONLY - DO NOT INCLUDE IN CUSTOMER QUOTE**
 
 | Metric | Value |
 |--------|-------|
@@ -659,11 +680,12 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}
 | **Profit Margin** | ${profitMargin}% |
 | **Risk Level** | ${riskLevel} |
 
-### Notes
-- Profit margin below 15% = High Risk
-- Profit margin 15-20% = Medium Risk
-- Profit margin above 20% = Low Risk
-- Review scope and pricing if risk is High`;
+| Risk Assessment |
+|-----------------|
+| Below 15% = High Risk |
+| 15-20% = Medium Risk |
+| Above 20% = Low Risk |
+<!-- INTERNAL_END -->`;
         },
         
         plumbing: (prompt: string) => {
@@ -1218,10 +1240,11 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
 | **FRAMING TOTAL** | **$${framingTotal.toLocaleString()}.00 CAD** |
 | **Cost per Sq Ft** | **$${costPerSqft}/sq ft** |
 
+<!-- INTERNAL_START -->
 ---
 
 ## INTERNAL CONTRACTOR SUMMARY
-*This section is for contractor use only - NOT included in customer-facing quote*
+**FOR CONTRACTOR USE ONLY - DO NOT INCLUDE IN CUSTOMER QUOTE**
 
 | Metric | Value |
 |--------|-------|
@@ -1236,6 +1259,13 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
 | **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
 | **Profit Margin** | ${profitMargin}% |
 | **Risk Level** | ${riskLevel} |
+
+| Risk Assessment |
+|-----------------|
+| Below 15% = High Risk |
+| 15-20% = Medium Risk |
+| Above 20% = Low Risk |
+<!-- INTERNAL_END -->
 `;
     };
 
@@ -1270,21 +1300,21 @@ ${generateCodeComplianceSection(provinceValue, 'painting')}`;
       const bathroomsMatch = promptText.match(/(\d+(?:\.\d+)?)\s*bathroom/i);
       const bathrooms = bathroomsMatch ? parseFloat(bathroomsMatch[1]) : 0;
       
-      // Detailed construction line items
+      // Detailed construction line items (aligned with trade-specific estimates)
       const foundationCost = Math.round(sqft * (isGarage ? 8 : 15));
-      const sitePrepCost = Math.round(foundationCost * 0.3); // Site prep is 30% of foundation
-      const framingCost = Math.round(sqft * (isGarage ? 12 : 25));
-      const roofingCost = Math.round(sqft * (isGarage ? 6 : 12));
-      const sidingCost = Math.round(sqft * (isGarage ? 5 : 10));
-      const electricalCost = Math.round(sqft * (isGarage ? 3 : 8));
-      const plumbingCost = isGarage ? 0 : Math.round(sqft * 6);
-      const hvacCost = isGarage ? 0 : Math.round(sqft * 8);
-      const insulationCost = Math.round(sqft * (isGarage ? 2 : 4));
-      const drywallCost = Math.round(sqft * (isGarage ? 3 : 6));
-      const flooringCost = Math.round(sqft * (isGarage ? 2 : 8));
-      const doorsWindowsCost = Math.round(sqft * (isGarage ? 3 : 10));
-      const paintCost = Math.round(sqft * (isGarage ? 1 : 3));
-      const permitsCost = Math.round(sqft * 2);
+      const sitePrepCost = Math.round(foundationCost * 0.25); // Site prep is 25% of foundation
+      const framingCost = Math.round(sqft * (isGarage ? 14 : 28)); // Matches framing-only estimate
+      const roofingCost = Math.round(sqft * (isGarage ? 5 : 10)); // Shingles/metal install
+      const sidingCost = Math.round(sqft * (isGarage ? 4 : 8));
+      const electricalCost = Math.round(sqft * (isGarage ? 6 : 10)); // Matches electrical estimate
+      const plumbingCost = isGarage ? 0 : Math.round(sqft * 5);
+      const hvacCost = isGarage ? 0 : Math.round(sqft * 7);
+      const insulationCost = Math.round(sqft * (isGarage ? 1.50 : 3));
+      const drywallCost = Math.round(sqft * (isGarage ? 2.50 : 5));
+      const flooringCost = Math.round(sqft * (isGarage ? 1.50 : 6)); // Garage = concrete seal
+      const doorsWindowsCost = Math.round(sqft * (isGarage ? 4 : 8)); // Overhead door + man door
+      const paintCost = Math.round(sqft * (isGarage ? 0.75 : 2));
+      const permitsCost = Math.round(isGarage ? 800 : sqft * 1.5); // Flat permit for garage
       
       // Calculate base cost (all costs before overhead)
       const baseCost = foundationCost + sitePrepCost + framingCost + roofingCost + sidingCost + 
@@ -1526,7 +1556,7 @@ Review ONLY the pricing aspects of this estimate:
 - Is the overhead percentage (15-20%) reasonable?
 - Note: Atlantic Canada prices are typically 15-25% higher than mainland
 
-Provide 2-3 bullet points. Use 💰 for pricing notes.
+Provide 2-3 bullet points.
 Focus on whether the customer is getting fair value for the STATED scope.`;
 
           // Agent 3: Materials Specialist
@@ -1541,7 +1571,7 @@ Review ONLY the materials specified in this estimate:
 - Are the receptacle and switch quantities reasonable for the space?
 - Any quality concerns with specified materials?
 
-Provide 2-3 bullet points. Use 🔧 for material notes.
+Provide 2-3 bullet points.
 Only comment on what IS in the estimate, not what you think SHOULD be added.`;
 
           // Agent 4: Safety Inspector
@@ -1555,7 +1585,7 @@ Review ONLY the safety aspects for the STATED scope:
 - Is proper grounding addressed?
 - Any safety concerns with the installation as specified?
 
-Provide 2-3 bullet points. Use 🛡️ for safety items, ⚠️ for concerns.
+Provide 2-3 bullet points.
 Do NOT invent hazards for equipment that wasn't requested (no EV chargers, welders, etc. unless explicitly listed).`;
 
           // Agent 5: Project Manager Summary
@@ -1615,23 +1645,23 @@ Provide your specialist review for this ${projectType}.`;
           ]);
 
           // Combine all agent reviews into formatted output
-          const agentReviews = `## 🤖 AI Specialist Team Review
+          const agentReviews = `## AI Specialist Team Review
 
-### 📋 Executive Summary
+### Executive Summary
 ${projectManagerReview}
 
 ---
 
-### 📜 Code Compliance Review
+### Code Compliance Review
 ${codeComplianceReview}
 
-### 💰 Pricing Analysis
+### Pricing Analysis
 ${pricingReview}
 
-### 🔧 Materials Assessment
+### Materials Assessment
 ${materialsReview}
 
-### 🛡️ Safety Review
+### Safety Review
 ${safetyReview}
 
 ---
