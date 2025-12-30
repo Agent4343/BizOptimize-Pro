@@ -45,9 +45,9 @@ async function getContractorSettings(): Promise<ContractorSettings | null> {
     if (!contractor) return null;
 
     // Extract labor rates
-    const journeymanRate = contractor.laborRates.find(r => r.workerType === 'journeyman')?.hourlyRate || 85;
-    const apprenticeRate = contractor.laborRates.find(r => r.workerType === 'apprentice')?.hourlyRate || 45;
-    const helperRate = contractor.laborRates.find(r => r.workerType === 'helper')?.hourlyRate || 35;
+    const journeymanRate = contractor.laborRates.find((r: { workerType: string; hourlyRate: number }) => r.workerType === 'journeyman')?.hourlyRate || 85;
+    const apprenticeRate = contractor.laborRates.find((r: { workerType: string; hourlyRate: number }) => r.workerType === 'apprentice')?.hourlyRate || 45;
+    const helperRate = contractor.laborRates.find((r: { workerType: string; hourlyRate: number }) => r.workerType === 'helper')?.hourlyRate || 35;
 
     return {
       companyName: contractor.companyName,
@@ -692,193 +692,1086 @@ ${generateCodeComplianceSection(provinceValue, 'electrical')}
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
 
           // Fix: Use more specific regex patterns to avoid matching square footage
-          // Look for explicit fixture count patterns like "Fixtures: 5" or "5 fixtures"
           const fixturesColonMatch = prompt.match(/Fixtures:\s*(\d+)/i);
           const fixturesCountMatch = prompt.match(/(\d+)\s*(?:plumbing\s*)?fixtures/i);
 
-          // Detect utility sink requests for garages
+          // Get square footage
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
+          // ============ DETECT SPECIAL REQUIREMENTS ============
           const wantsUtilitySink = /utility\s*sink|laundry\s*sink|slop\s*sink|garage\s*sink/i.test(prompt) &&
             !/no\s+utility|don't\s+need\s+utility|not\s+need.*utility|no\s+sink/i.test(prompt);
 
-          // Detect bathroom/washroom for garages that want them
           const wantsBathroom = /bathroom|washroom|toilet|half\s*bath/i.test(prompt) &&
             !/no\s+bathroom|don't\s+need\s+bathroom|no\s+toilet/i.test(prompt);
+
+          const wantsFullBath = /full\s*bath|shower|tub/i.test(prompt) &&
+            !/no\s+shower|no\s+tub|half\s*bath/i.test(prompt);
+
+          const wantsWaterHeater = /water.*heater|hot\s*water\s*tank/i.test(prompt) &&
+            !/no\s+water\s*heater|don't\s+need.*heater/i.test(prompt);
+
+          const wantsHoseBib = /hose\s*bib|outdoor\s*faucet|exterior\s*tap/i.test(prompt);
+
+          const wantsFloorDrain = /floor\s*drain|drainage/i.test(prompt);
 
           // Calculate fixtures based on explicit count or detected needs
           let fixtures: number;
           if (fixturesColonMatch) {
             fixtures = parseInt(fixturesColonMatch[1]);
           } else if (fixturesCountMatch && parseInt(fixturesCountMatch[1]) <= 50) {
-            // Only use if count is reasonable (<=50), not square footage
             fixtures = parseInt(fixturesCountMatch[1]);
           } else if (isGarage) {
-            // For garages: 0 by default, 1 for utility sink, 3 for bathroom (toilet, sink, maybe shower)
-            fixtures = wantsBathroom ? 3 : (wantsUtilitySink ? 1 : 0);
+            fixtures = wantsFullBath ? 4 : (wantsBathroom ? 2 : (wantsUtilitySink ? 1 : 0));
           } else {
-            // Default for residential
-            fixtures = 5;
+            fixtures = 8; // Typical residential: 2 bath + kitchen
           }
 
-          const waterHeater = /water.*heater/i.test(prompt) && !isGarage;
-          
-          // For garages, typically only utility sink if any plumbing
-          const fixtureCost = isGarage ? (fixtures > 0 ? fixtures * 300 : 0) : fixtures * 450;
-          const waterHeaterCost = waterHeater ? 2500 : 0;
-          const pipeCost = isGarage ? (fixtures > 0 ? fixtures * 120 : 0) : fixtures * 180;
-          const drainCost = isGarage ? (fixtures > 0 ? fixtures * 80 : 0) : fixtures * 120;
-          const permitCost = isGarage ? 150 : 300;
-          const inspectionCost = isGarage ? 100 : 150;
-          const contractorOverhead = Math.round((fixtureCost + waterHeaterCost + pipeCost + drainCost) * 0.20);
-          
-          let totalCost = fixtureCost + waterHeaterCost + pipeCost + drainCost + permitCost + inspectionCost + contractorOverhead;
-          // Apply province-specific cost multiplier
-          totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
-          
-          // Generate fixture description based on what was detected
-          const getFixtureDescription = () => {
-            if (isGarage) {
-              if (fixtures === 0) return 'None required';
-              if (wantsBathroom) return `${fixtures} (Bathroom: toilet, sink${fixtures > 2 ? ', shower' : ''})`;
-              if (wantsUtilitySink) return '1 (Utility sink)';
-              return `${fixtures}`;
-            }
-            return `${fixtures}`;
+          // ============ SCOPE CLASSIFICATION ============
+          let scopeType: string;
+          let scopeDescription: string;
+          if (isGarage && fixtures === 0) {
+            scopeType = 'No Plumbing';
+            scopeDescription = 'No plumbing required for this project';
+          } else if (isGarage && wantsUtilitySink && !wantsBathroom) {
+            scopeType = 'Utility Only';
+            scopeDescription = 'Single utility/laundry sink installation';
+          } else if (isGarage && wantsBathroom && !wantsFullBath) {
+            scopeType = 'Half Bath';
+            scopeDescription = 'Half bathroom (toilet and sink)';
+          } else if (isGarage && wantsFullBath) {
+            scopeType = 'Full Bath';
+            scopeDescription = 'Full bathroom with shower/tub';
+          } else if (!isGarage && fixtures <= 5) {
+            scopeType = 'Bathroom Addition';
+            scopeDescription = 'Single bathroom rough-in and finish';
+          } else if (!isGarage && fixtures <= 10) {
+            scopeType = 'Standard Residential';
+            scopeDescription = 'Standard home plumbing package';
+          } else {
+            scopeType = 'Full Renovation';
+            scopeDescription = 'Complete plumbing rough-in and finish';
+          }
+
+          // ============ LABOR CALCULATIONS (Crew-Based) ============
+          const journeymanRate = contractorSettings?.journeymanRate || 78; // Licensed plumber
+          const apprenticeRate = contractorSettings?.apprenticeRate || 42;
+          const travelRate = contractorSettings?.travelRate || 55;
+
+          // Calculate labor hours based on scope
+          const roughInHoursPerFixture = isGarage ? 1.5 : 2.0;
+          const finishHoursPerFixture = 0.75;
+          const waterHeaterHours = wantsWaterHeater ? 3 : 0;
+          const hoseBibHours = wantsHoseBib ? 1.5 : 0;
+          const floorDrainHours = wantsFloorDrain ? 2 : 0;
+
+          const roughInHours = fixtures * roughInHoursPerFixture;
+          const finishHours = fixtures * finishHoursPerFixture;
+          const totalLaborHours = roughInHours + finishHours + waterHeaterHours + hoseBibHours + floorDrainHours;
+
+          // Crew size determination
+          const needsApprentice = totalLaborHours > 10 || fixtures > 4;
+          const crewSize = needsApprentice ? 2 : 1;
+          const workHoursPerDay = 8;
+          const effectiveHoursPerDay = crewSize === 2 ? workHoursPerDay * 1.5 : workHoursPerDay;
+          const projectDays = Math.ceil(totalLaborHours / effectiveHoursPerDay);
+
+          // Travel
+          const isRemote = /rural|remote|outside|country/i.test(locationValue);
+          const travelHours = isRemote ? 2 : 0.5;
+          const travelCost = Math.round(travelHours * projectDays * travelRate);
+
+          // Labor costs (based on project days, not theoretical hours)
+          const journeymanHours = projectDays * workHoursPerDay;
+          const apprenticeHours = needsApprentice ? Math.round(projectDays * workHoursPerDay * 0.85) : 0;
+          const journeymanCost = Math.round(journeymanHours * journeymanRate);
+          const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
+          const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
+
+          // ============ MATERIAL COSTS (2024 pricing) ============
+          const fixtureCosts: Record<string, number> = {
+            'toilet': 350,
+            'sink': 280,
+            'shower': 450,
+            'tub': 550,
+            'utility_sink': 220,
+            'hose_bib': 85
           };
 
-          return `# Plumbing Estimate
+          // Calculate fixture material costs
+          let fixtureMaterial = 0;
+          if (isGarage) {
+            if (wantsUtilitySink) fixtureMaterial += fixtureCosts.utility_sink;
+            if (wantsBathroom) fixtureMaterial += fixtureCosts.toilet + fixtureCosts.sink;
+            if (wantsFullBath) fixtureMaterial += fixtureCosts.shower;
+          } else {
+            fixtureMaterial = fixtures * 350; // Average fixture cost
+          }
+          if (wantsHoseBib) fixtureMaterial += fixtureCosts.hose_bib;
 
-## Project Details
-- **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${provinceValue}
-- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **Fixtures**: ${getFixtureDescription()}
-- **Water Heater**: ${waterHeater ? 'Yes' : 'No'}${isGarage ? ' (Not typically required for garages)' : ''}
+          // Pipe materials
+          const waterLineMaterial = fixtures * 65; // PEX, fittings
+          const drainMaterial = fixtures * 55; // ABS/PVC, fittings
+          const ventMaterial = fixtures * 35; // Vent stack materials
+          const waterHeaterMaterial = wantsWaterHeater ? 1200 : 0; // 50 gal tank + parts
+          const floorDrainMaterial = wantsFloorDrain ? 180 : 0;
+          const miscMaterial = Math.round((fixtureMaterial + waterLineMaterial + drainMaterial) * 0.08);
 
-## Detailed Cost Breakdown
+          const totalMaterialCost = fixtureMaterial + waterLineMaterial + drainMaterial + ventMaterial +
+            waterHeaterMaterial + floorDrainMaterial + miscMaterial;
 
-### Plumbing Components
-- **Fixture Installation** (${fixtures} fixtures @ $450): $${fixtureCost.toLocaleString()}
-${waterHeater ? `- **Water Heater Installation**: $${waterHeaterCost.toLocaleString()}\n` : ''}- **Water Lines** (${fixtures} fixtures @ $180): $${pipeCost.toLocaleString()}
-- **Drain Lines** (${fixtures} fixtures @ $120): $${drainCost.toLocaleString()}
+          // ============ PERMITS & INSPECTIONS ============
+          const permitCost = isGarage ? 175 : 350;
+          const inspectionCost = isGarage ? 125 : 200;
 
-### Other Costs
-- **Permits**: $${permitCost.toLocaleString()}
-- **Inspections**: $${inspectionCost.toLocaleString()}
-- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+          // ============ OVERHEAD & PROFIT ============
+          const directCosts = totalLaborCost + totalMaterialCost + permitCost + inspectionCost;
+          const overheadPercent = contractorSettings?.overheadPercent || 12;
+          const profitPercent = contractorSettings?.profitPercent || 10;
+          const overheadAmount = Math.round(directCosts * (overheadPercent / 100));
+          const profitAmount = Math.round(directCosts * (profitPercent / 100));
+          const overheadAndProfit = overheadAmount + profitAmount;
 
-## Summary
-- **Total Plumbing Cost**: $${totalCost.toLocaleString()} CAD
-- **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+          let totalCost = directCosts + overheadAndProfit;
+          totalCost = Math.round(totalCost * costMultiplier);
+
+          // Internal profit metrics
+          const grossProfit = totalCost - (totalLaborCost + totalMaterialCost + permitCost + inspectionCost);
+          const profitMargin = Math.round((grossProfit / totalCost) * 100);
+          const riskLevel = profitMargin < 15 ? 'High' : (profitMargin < 20 ? 'Medium' : 'Low');
+
+          // Generate estimate info
+          const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
+          const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const quoteValidDays = contractorSettings?.quoteValidDays || 30;
+          const validUntil = new Date(Date.now() + quoteValidDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+          // Get contractor info
+          const companyName = contractorSettings?.companyName || '';
+          const companyPhone = contractorSettings?.phone || '';
+          const companyEmail = contractorSettings?.email || '';
+          const companyAddress = contractorSettings ?
+            [contractorSettings.address, contractorSettings.city, contractorSettings.province, contractorSettings.postalCode]
+              .filter(Boolean).join(', ') : '';
+          const licenseNumber = contractorSettings?.licenseNumber || '';
+
+          // Terms
+          const depositPercent = contractorSettings?.depositPercent || 50;
+          const paymentTerms = contractorSettings?.paymentTerms || 'Balance due upon completion and successful inspection';
+          const warrantyYears = contractorSettings?.warrantyYears || 1;
+          const warrantyTerms = contractorSettings?.warrantyTerms || 'Manufacturer warranties apply to all materials.';
+
+          const companyHeader = companyName ? `
+${companyName}
+${companyAddress ? companyAddress + '\n' : ''}${companyPhone ? 'Phone: ' + companyPhone + ' | ' : ''}${companyEmail ? 'Email: ' + companyEmail : ''}
+${licenseNumber ? 'License: ' + licenseNumber : ''}
+
+---
+` : '';
+
+          // Handle no plumbing case
+          if (fixtures === 0 && !wantsHoseBib && !wantsFloorDrain) {
+            return `# PLUMBING ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${isGarage ? 'Garage' : 'Residential'} |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Scope Classification** | No Plumbing Required |
+
+**Note:** No plumbing fixtures or connections are required for this project.
 
 ${generateCodeComplianceSection(provinceValue, 'plumbing')}`;
+          }
+
+          return `# PLUMBING ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+**Valid Until:** ${validUntil}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${isGarage ? 'Garage' : 'Residential'} Plumbing Installation |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Square Footage** | ${sqft.toLocaleString()} sq ft |
+| **Scope Classification** | ${scopeType} |
+
+**Scope:** ${scopeDescription}
+
+---
+
+## Plumbing Specifications
+
+| Component | Quantity | Notes |
+|-----------|----------|-------|
+| Fixtures | ${fixtures} | ${isGarage && wantsBathroom ? (wantsFullBath ? 'Full bath' : 'Half bath') : (isGarage && wantsUtilitySink ? 'Utility sink' : 'Standard fixtures')} |
+${wantsWaterHeater ? '| Water Heater | 1 | 50 gal tank |\n' : ''}${wantsHoseBib ? '| Hose Bib | 1 | Exterior frost-free |\n' : ''}${wantsFloorDrain ? '| Floor Drain | 1 | With P-trap |\n' : ''}| Water Supply | PEX | Hot & cold lines |
+| Drain/Waste | ABS/PVC | Per provincial code |
+| Vent Stack | ABS/PVC | Through roof |
+
+---
+
+## Crew Assignment & Schedule
+
+| | Details |
+|---|---------|
+| **Lead Plumber** | Licensed Journeyman |
+| **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
+| **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
+| **Billable Hours** | ${journeymanHours}${needsApprentice ? ` + ${apprenticeHours} apprentice` : ''} hours |
+| **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
+
+### Work Breakdown Schedule
+
+| Phase | Task | Hours |
+|-------|------|-------|
+| 1 | Rough-in (supply, drain, vent) | ${roughInHours.toFixed(1)} hrs |
+| 2 | Fixture Installation & Trim | ${finishHours.toFixed(1)} hrs |
+${wantsWaterHeater ? `| 3 | Water Heater Installation | ${waterHeaterHours.toFixed(1)} hrs |\n` : ''}${wantsHoseBib ? `| ${wantsWaterHeater ? '4' : '3'} | Hose Bib Installation | ${hoseBibHours.toFixed(1)} hrs |\n` : ''}${wantsFloorDrain ? `| ${wantsWaterHeater && wantsHoseBib ? '5' : (wantsWaterHeater || wantsHoseBib ? '4' : '3')} | Floor Drain Installation | ${floorDrainHours.toFixed(1)} hrs |\n` : ''}| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+
+---
+
+## Cost Breakdown
+
+### A. Labor
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| Journeyman Plumber | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
+${needsApprentice ? `| Plumbing Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |\n` : ''}| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $${travelRate}.00/hr | $${travelCost.toLocaleString()}.00 |
+| **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
+
+### B. Materials
+
+| Item | Qty | Amount |
+|------|-----|--------|
+| Plumbing Fixtures | ${fixtures} | $${fixtureMaterial.toLocaleString()}.00 |
+| Water Supply (PEX, fittings) | - | $${waterLineMaterial.toLocaleString()}.00 |
+| Drain/Waste (ABS/PVC, fittings) | - | $${drainMaterial.toLocaleString()}.00 |
+| Vent Stack Materials | - | $${ventMaterial.toLocaleString()}.00 |
+${wantsWaterHeater ? `| Water Heater (50 gal) | 1 | $${waterHeaterMaterial.toLocaleString()}.00 |\n` : ''}${wantsFloorDrain ? `| Floor Drain w/ P-trap | 1 | $${floorDrainMaterial.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
+
+### C. Permits & Inspections
+
+| Item | Amount |
+|------|--------|
+| Plumbing Permit | $${permitCost.toLocaleString()}.00 |
+| Provincial Plumbing Inspection | $${inspectionCost.toLocaleString()}.00 |
+| **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
+
+### D. Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+
+---
+
+## ESTIMATE SUMMARY
+
+| Category | Amount |
+|----------|-------:|
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+| | |
+| **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
+
+---
+
+## Terms & Conditions
+
+1. **Payment Terms:** ${depositPercent}% deposit required to schedule work. ${paymentTerms}.
+2. **Warranty:** ${warrantyYears}-year workmanship warranty. ${warrantyTerms}
+3. **Permits:** All permits and inspections included in quote.
+4. **Changes:** Any changes to scope will be quoted separately.
+5. **Access:** Clear access to work area required. Additional charges may apply for obstructed access.
+6. **Validity:** This estimate is valid for ${quoteValidDays} days from date of issue.
+
+---
+
+## Contractor Requirements (${provinceValue})
+
+- Licensed Master Plumber supervision required
+- Valid plumbing contractor license${licenseNumber ? ` (${licenseNumber})` : ''}
+- ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
+- WSIB/WCB coverage for all workers
+- Provincial inspection required before concealment
+
+${generateCodeComplianceSection(provinceValue, 'plumbing')}
+
+<!-- INTERNAL_START -->
+---
+
+## INTERNAL CONTRACTOR SUMMARY
+**FOR CONTRACTOR USE ONLY - DO NOT INCLUDE IN CUSTOMER QUOTE**
+
+| Metric | Value |
+|--------|-------|
+| **Direct Costs** | $${directCosts.toLocaleString()}.00 |
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| | |
+| **Overhead (${overheadPercent}%)** | $${overheadAmount.toLocaleString()}.00 |
+| **Profit (${profitPercent}%)** | $${profitAmount.toLocaleString()}.00 |
+| | |
+| **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
+| **Profit Margin** | ${profitMargin}% |
+| **Risk Level** | ${riskLevel} |
+
+| Risk Assessment |
+|-----------------|
+| Below 15% = High Risk |
+| 15-20% = Medium Risk |
+| Above 20% = Low Risk |
+<!-- INTERNAL_END -->`;
         },
         
         hvac: (prompt: string) => {
           const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
+
+          // Get square footage
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
+          // ============ DETECT SPECIAL REQUIREMENTS ============
           const capacityMatch = prompt.match(/(\d+).*?(?:BTU|btu|ton)/i);
-          const capacity = capacityMatch ? parseInt(capacityMatch[1]) : (isGarage ? 0 : 36000);
-          const systemType = /heat.*pump/i.test(prompt) ? 'Heat Pump' : (/space.*heater|radiant/i.test(prompt) ? 'Space Heater/Radiant' : 'Forced Air');
-          const ductwork = /ductwork/i.test(prompt) && !isGarage;
-          const noHVAC = /no.*hvac|none.*required/i.test(prompt) || (isGarage && !capacityMatch);
-          
-          // For garages, typically no HVAC or minimal heating
-          const systemCost = noHVAC ? 0 : (isGarage ? 1200 : (capacity >= 36000 ? 8500 : 6500));
-          const ductworkCost = ductwork ? 3500 : 0;
-          const installationCost = isGarage ? 600 : 2500;
-          const permitCost = isGarage ? 200 : 400;
-          const inspectionCost = isGarage ? 100 : 200;
-          const contractorOverhead = Math.round((systemCost + ductworkCost + installationCost) * 0.20);
-          
-          let totalCost = systemCost + ductworkCost + installationCost + permitCost + inspectionCost + contractorOverhead;
-          // Apply province-specific cost multiplier
+          const capacity = capacityMatch ? parseInt(capacityMatch[1]) : 0;
+
+          const wantsHeatPump = /heat\s*pump|mini\s*split|ductless/i.test(prompt) &&
+            !/no\s+heat\s*pump|don't\s+need.*heat\s*pump/i.test(prompt);
+
+          const wantsSpaceHeater = /space\s*heater|garage\s*heater|unit\s*heater|radiant/i.test(prompt) &&
+            !/no\s+heater|don't\s+need.*heater/i.test(prompt);
+
+          const wantsForcedAir = /forced\s*air|furnace|central\s*heat/i.test(prompt);
+
+          const wantsDuctwork = /ductwork|ducts|duct\s*system/i.test(prompt) &&
+            !/no\s+duct|ductless/i.test(prompt);
+
+          const wantsAC = /air\s*condition|a\/c|cooling|central\s*air/i.test(prompt) &&
+            !/no\s+a\/c|no\s+cooling|heat\s*only/i.test(prompt);
+
+          const wantsVentilation = /ventilation|exhaust|fresh\s*air|hrv|erv/i.test(prompt);
+
+          const noHVAC = /no.*hvac|none.*required|no\s+heat/i.test(prompt) ||
+            (isGarage && !wantsHeatPump && !wantsSpaceHeater && !capacityMatch);
+
+          // ============ SCOPE CLASSIFICATION ============
+          let scopeType: string;
+          let scopeDescription: string;
+          let systemType: string;
+
+          if (noHVAC) {
+            scopeType = 'No HVAC';
+            scopeDescription = 'No heating or cooling required for this project';
+            systemType = 'None';
+          } else if (isGarage && wantsHeatPump) {
+            scopeType = 'Garage Heat Pump';
+            scopeDescription = 'Mini-split heat pump for garage heating/cooling';
+            systemType = 'Ductless Mini-Split';
+          } else if (isGarage && wantsSpaceHeater) {
+            scopeType = 'Garage Heater';
+            scopeDescription = 'Unit heater for garage space heating';
+            systemType = 'Unit Heater (Gas/Electric)';
+          } else if (wantsHeatPump && !wantsDuctwork) {
+            scopeType = 'Ductless System';
+            scopeDescription = 'Ductless mini-split heat pump installation';
+            systemType = 'Ductless Mini-Split';
+          } else if (wantsForcedAir || wantsDuctwork) {
+            scopeType = wantsAC ? 'Full HVAC System' : 'Forced Air Heating';
+            scopeDescription = wantsAC ? 'Central heating and cooling with ductwork' : 'Forced air furnace with ductwork';
+            systemType = wantsAC ? 'Furnace + AC' : 'Forced Air Furnace';
+          } else if (wantsAC) {
+            scopeType = 'AC Addition';
+            scopeDescription = 'Air conditioning system installation';
+            systemType = 'Central AC';
+          } else {
+            scopeType = 'Standard Heating';
+            scopeDescription = 'Standard heating system installation';
+            systemType = 'Forced Air';
+          }
+
+          // Calculate BTU requirement if not specified
+          const calculatedBTU = capacity > 0 ? capacity : Math.round(sqft * (isGarage ? 35 : 30));
+
+          // ============ LABOR CALCULATIONS (Crew-Based) ============
+          const journeymanRate = contractorSettings?.journeymanRate || 82; // HVAC tech rate
+          const apprenticeRate = contractorSettings?.apprenticeRate || 45;
+          const travelRate = contractorSettings?.travelRate || 55;
+
+          // Calculate labor hours based on scope
+          let equipmentHours = 0;
+          let ductworkHours = 0;
+          let ventilationHours = 0;
+
+          if (noHVAC) {
+            equipmentHours = 0;
+          } else if (isGarage && wantsHeatPump) {
+            equipmentHours = 6; // Mini-split install
+          } else if (isGarage && wantsSpaceHeater) {
+            equipmentHours = 4; // Unit heater install
+          } else if (wantsHeatPump && !wantsDuctwork) {
+            equipmentHours = 8; // Ductless system
+          } else if (wantsForcedAir || wantsDuctwork) {
+            equipmentHours = 10; // Furnace install
+            ductworkHours = Math.ceil(sqft / 150); // ~1 hr per 150 sqft for ductwork
+          } else {
+            equipmentHours = 6;
+          }
+
+          if (wantsAC && !wantsHeatPump) {
+            equipmentHours += 6; // AC condenser install
+          }
+
+          if (wantsVentilation) {
+            ventilationHours = 4; // HRV/ERV or exhaust
+          }
+
+          const testingHours = noHVAC ? 0 : 2; // System testing and commissioning
+          const totalLaborHours = equipmentHours + ductworkHours + ventilationHours + testingHours;
+
+          // Crew size determination
+          const needsApprentice = totalLaborHours > 12 || wantsDuctwork;
+          const crewSize = needsApprentice ? 2 : 1;
+          const workHoursPerDay = 8;
+          const effectiveHoursPerDay = crewSize === 2 ? workHoursPerDay * 1.5 : workHoursPerDay;
+          const projectDays = Math.max(1, Math.ceil(totalLaborHours / effectiveHoursPerDay));
+
+          // Travel
+          const isRemote = /rural|remote|outside|country/i.test(locationValue);
+          const travelHours = isRemote ? 2 : 0.5;
+          const travelCost = noHVAC ? 0 : Math.round(travelHours * projectDays * travelRate);
+
+          // Labor costs
+          const journeymanHours = noHVAC ? 0 : projectDays * workHoursPerDay;
+          const apprenticeHours = needsApprentice ? Math.round(projectDays * workHoursPerDay * 0.85) : 0;
+          const journeymanCost = Math.round(journeymanHours * journeymanRate);
+          const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
+          const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
+
+          // ============ MATERIAL COSTS (2024 pricing) ============
+          let equipmentMaterial = 0;
+          let ductworkMaterial = 0;
+          let ventilationMaterial = 0;
+
+          if (!noHVAC) {
+            if (isGarage && wantsHeatPump) {
+              equipmentMaterial = 2800; // Mini-split unit
+            } else if (isGarage && wantsSpaceHeater) {
+              equipmentMaterial = 850; // Unit heater
+            } else if (wantsHeatPump && !wantsDuctwork) {
+              equipmentMaterial = 3500; // Ductless multi-zone
+            } else if (wantsForcedAir) {
+              equipmentMaterial = 2200; // Furnace
+            }
+
+            if (wantsAC && !wantsHeatPump) {
+              equipmentMaterial += 2800; // AC condenser
+            }
+
+            if (wantsDuctwork) {
+              ductworkMaterial = Math.round(sqft * 2.5); // ~$2.50/sqft for ductwork
+            }
+
+            if (wantsVentilation) {
+              ventilationMaterial = 1200; // HRV/ERV unit
+            }
+          }
+
+          const thermostatMaterial = noHVAC ? 0 : 180; // Programmable thermostat
+          const refrigerantMaterial = (wantsHeatPump || wantsAC) ? 250 : 0;
+          const miscMaterial = noHVAC ? 0 : Math.round((equipmentMaterial + ductworkMaterial) * 0.08);
+
+          const totalMaterialCost = equipmentMaterial + ductworkMaterial + ventilationMaterial +
+            thermostatMaterial + refrigerantMaterial + miscMaterial;
+
+          // ============ PERMITS & INSPECTIONS ============
+          const permitCost = noHVAC ? 0 : (isGarage ? 175 : 350);
+          const inspectionCost = noHVAC ? 0 : (isGarage ? 125 : 225);
+
+          // ============ OVERHEAD & PROFIT ============
+          const directCosts = totalLaborCost + totalMaterialCost + permitCost + inspectionCost;
+          const overheadPercent = contractorSettings?.overheadPercent || 12;
+          const profitPercent = contractorSettings?.profitPercent || 10;
+          const overheadAmount = Math.round(directCosts * (overheadPercent / 100));
+          const profitAmount = Math.round(directCosts * (profitPercent / 100));
+          const overheadAndProfit = overheadAmount + profitAmount;
+
+          let totalCost = directCosts + overheadAndProfit;
           totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
-          
-          return `# HVAC Estimate
 
-## Project Details
-- **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${provinceValue}
-- **Project Type**: ${isGarage ? 'Garage' : 'Residential'}
-- **System Type**: ${noHVAC ? 'No HVAC Required' : systemType}
-- **Capacity**: ${capacity > 0 ? capacity.toLocaleString() + ' BTU' : 'N/A'}
-- **Ductwork**: ${ductwork ? 'Required' : 'Not Required'}${isGarage ? ' (Garages typically don\'t require ductwork)' : ''}
+          // Internal profit metrics
+          const grossProfit = totalCost - (totalLaborCost + totalMaterialCost + permitCost + inspectionCost);
+          const profitMargin = totalCost > 0 ? Math.round((grossProfit / totalCost) * 100) : 0;
+          const riskLevel = profitMargin < 15 ? 'High' : (profitMargin < 20 ? 'Medium' : 'Low');
 
-## Detailed Cost Breakdown
+          // Generate estimate info
+          const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
+          const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const quoteValidDays = contractorSettings?.quoteValidDays || 30;
+          const validUntil = new Date(Date.now() + quoteValidDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
-### HVAC Components
-- **HVAC System**: $${systemCost.toLocaleString()}
-${ductwork ? `- **Ductwork Installation**: $${ductworkCost.toLocaleString()}\n` : ''}- **Installation Labor**: $${installationCost.toLocaleString()}
+          // Get contractor info
+          const companyName = contractorSettings?.companyName || '';
+          const companyPhone = contractorSettings?.phone || '';
+          const companyEmail = contractorSettings?.email || '';
+          const companyAddress = contractorSettings ?
+            [contractorSettings.address, contractorSettings.city, contractorSettings.province, contractorSettings.postalCode]
+              .filter(Boolean).join(', ') : '';
+          const licenseNumber = contractorSettings?.licenseNumber || '';
 
-### Other Costs
-- **Permits**: $${permitCost.toLocaleString()}
-- **Inspections**: $${inspectionCost.toLocaleString()}
-- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+          // Terms
+          const depositPercent = contractorSettings?.depositPercent || 50;
+          const paymentTerms = contractorSettings?.paymentTerms || 'Balance due upon completion and successful inspection';
+          const warrantyYears = contractorSettings?.warrantyYears || 1;
+          const warrantyTerms = contractorSettings?.warrantyTerms || 'Manufacturer warranties apply to all materials.';
 
-## Summary
-- **Total HVAC Cost**: $${totalCost.toLocaleString()} CAD
-- **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+          const companyHeader = companyName ? `
+${companyName}
+${companyAddress ? companyAddress + '\n' : ''}${companyPhone ? 'Phone: ' + companyPhone + ' | ' : ''}${companyEmail ? 'Email: ' + companyEmail : ''}
+${licenseNumber ? 'License: ' + licenseNumber : ''}
+
+---
+` : '';
+
+          // Handle no HVAC case
+          if (noHVAC) {
+            return `# HVAC ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${isGarage ? 'Garage' : 'Residential'} |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Scope Classification** | No HVAC Required |
+
+**Note:** No heating, ventilation, or air conditioning is required for this project.
 
 ${generateCodeComplianceSection(provinceValue, 'hvac')}`;
+          }
+
+          return `# HVAC ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+**Valid Until:** ${validUntil}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${isGarage ? 'Garage' : 'Residential'} HVAC Installation |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Square Footage** | ${sqft.toLocaleString()} sq ft |
+| **Scope Classification** | ${scopeType} |
+
+**Scope:** ${scopeDescription}
+
+---
+
+## HVAC Specifications
+
+| Component | Details |
+|-----------|---------|
+| System Type | ${systemType} |
+| Heating Capacity | ${calculatedBTU.toLocaleString()} BTU |
+${wantsAC ? `| Cooling | Yes |\n` : ''}${wantsDuctwork ? `| Ductwork | Required |\n` : ''}${wantsVentilation ? `| Ventilation | HRV/ERV System |\n` : ''}| Thermostat | Programmable |
+
+---
+
+## Crew Assignment & Schedule
+
+| | Details |
+|---|---------|
+| **Lead HVAC Tech** | Licensed Journeyman |
+| **Crew Size** | ${crewSize} ${crewSize > 1 ? 'persons' : 'person'} ${needsApprentice ? '(1 Journeyman + 1 Apprentice)' : ''} |
+| **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
+| **Billable Hours** | ${journeymanHours}${needsApprentice ? ` + ${apprenticeHours} apprentice` : ''} hours |
+| **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
+
+### Work Breakdown Schedule
+
+| Phase | Task | Hours |
+|-------|------|-------|
+| 1 | Equipment Installation | ${equipmentHours.toFixed(1)} hrs |
+${wantsDuctwork ? `| 2 | Ductwork Installation | ${ductworkHours.toFixed(1)} hrs |\n` : ''}${wantsVentilation ? `| ${wantsDuctwork ? '3' : '2'} | Ventilation System | ${ventilationHours.toFixed(1)} hrs |\n` : ''}| ${wantsDuctwork && wantsVentilation ? '4' : (wantsDuctwork || wantsVentilation ? '3' : '2')} | Testing & Commissioning | ${testingHours.toFixed(1)} hrs |
+| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+
+---
+
+## Cost Breakdown
+
+### A. Labor
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| HVAC Technician | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
+${needsApprentice ? `| HVAC Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |\n` : ''}| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $${travelRate}.00/hr | $${travelCost.toLocaleString()}.00 |
+| **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
+
+### B. Materials
+
+| Item | Qty | Amount |
+|------|-----|--------|
+| ${systemType} Equipment | 1 | $${equipmentMaterial.toLocaleString()}.00 |
+${wantsDuctwork ? `| Ductwork & Fittings | - | $${ductworkMaterial.toLocaleString()}.00 |\n` : ''}${wantsVentilation ? `| Ventilation Unit | 1 | $${ventilationMaterial.toLocaleString()}.00 |\n` : ''}| Thermostat | 1 | $${thermostatMaterial.toLocaleString()}.00 |
+${refrigerantMaterial > 0 ? `| Refrigerant & Line Set | - | $${refrigerantMaterial.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
+
+### C. Permits & Inspections
+
+| Item | Amount |
+|------|--------|
+| HVAC Permit | $${permitCost.toLocaleString()}.00 |
+| Provincial HVAC Inspection | $${inspectionCost.toLocaleString()}.00 |
+| **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
+
+### D. Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+
+---
+
+## ESTIMATE SUMMARY
+
+| Category | Amount |
+|----------|-------:|
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+| | |
+| **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
+
+---
+
+## Terms & Conditions
+
+1. **Payment Terms:** ${depositPercent}% deposit required to schedule work. ${paymentTerms}.
+2. **Warranty:** ${warrantyYears}-year workmanship warranty. ${warrantyTerms}
+3. **Permits:** All permits and inspections included in quote.
+4. **Changes:** Any changes to scope will be quoted separately.
+5. **Access:** Clear access to work area required. Additional charges may apply for obstructed access.
+6. **Validity:** This estimate is valid for ${quoteValidDays} days from date of issue.
+
+---
+
+## Contractor Requirements (${provinceValue})
+
+- Licensed HVAC contractor required
+- Gas fitter license (if applicable)${licenseNumber ? ` (${licenseNumber})` : ''}
+- ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
+- WSIB/WCB coverage for all workers
+- Provincial inspection required before use
+
+${generateCodeComplianceSection(provinceValue, 'hvac')}
+
+<!-- INTERNAL_START -->
+---
+
+## INTERNAL CONTRACTOR SUMMARY
+**FOR CONTRACTOR USE ONLY - DO NOT INCLUDE IN CUSTOMER QUOTE**
+
+| Metric | Value |
+|--------|-------|
+| **Direct Costs** | $${directCosts.toLocaleString()}.00 |
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| | |
+| **Overhead (${overheadPercent}%)** | $${overheadAmount.toLocaleString()}.00 |
+| **Profit (${profitPercent}%)** | $${profitAmount.toLocaleString()}.00 |
+| | |
+| **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
+| **Profit Margin** | ${profitMargin}% |
+| **Risk Level** | ${riskLevel} |
+
+| Risk Assessment |
+|-----------------|
+| Below 15% = High Risk |
+| 15-20% = Medium Risk |
+| Above 20% = Low Risk |
+<!-- INTERNAL_END -->`;
         },
         
         roofing: (prompt: string) => {
-          const materialMatch = prompt.match(/Material.*?(\w+)/i);
-          const material = materialMatch ? materialMatch[1] : 'Asphalt Shingles';
-          const sizeMatch = prompt.match(/Size.*?(\d+)/i);
-          const sqft = sizeMatch ? parseInt(sizeMatch[1]) : 2000;
-          
-          const materialCosts: Record<string, number> = {
-            'asphalt': 4,
-            'metal': 8,
-            'tile': 12,
-            'slate': 15,
-            'rubber': 6
+          const isGarage = /garage/i.test(prompt) || /Project Type.*garage/i.test(prompt);
+
+          // Get square footage
+          const sqftMatch = prompt.match(/(\d+)\s*(?:sq\s*ft|square\s*feet)/i);
+          const sqft = sqftMatch ? parseInt(sqftMatch[1]) : (isGarage ? 600 : 2000);
+
+          // ============ DETECT MATERIAL & REQUIREMENTS ============
+          const materialPatterns: Record<string, RegExp> = {
+            'asphalt': /asphalt|shingle|3-tab|architectural/i,
+            'metal': /metal|steel|aluminum|standing\s*seam/i,
+            'tile': /tile|clay|concrete\s*tile/i,
+            'slate': /slate|natural\s*stone/i,
+            'rubber': /rubber|epdm|tpo|flat/i,
+            'cedar': /cedar|shake|wood/i
           };
-          const costPerSqft = materialCosts[material.toLowerCase()] || 4;
-          
-          const materialCost = sqft * costPerSqft;
-          const laborCost = sqft * 3;
-          const underlayment = sqft * 1.5;
-          const flashing = 800;
-          const permitCost = 250;
-          const contractorOverhead = Math.round((materialCost + laborCost + underlayment + flashing) * 0.20);
-          
-          let totalCost = materialCost + laborCost + underlayment + flashing + permitCost + contractorOverhead;
-          // Apply province-specific cost multiplier
+
+          let material = 'Asphalt Shingles';
+          for (const [mat, pattern] of Object.entries(materialPatterns)) {
+            if (pattern.test(prompt)) {
+              material = mat.charAt(0).toUpperCase() + mat.slice(1);
+              if (mat === 'asphalt') material = 'Asphalt Shingles';
+              if (mat === 'metal') material = 'Metal Roofing';
+              if (mat === 'rubber') material = 'EPDM/TPO';
+              if (mat === 'cedar') material = 'Cedar Shake';
+              break;
+            }
+          }
+
+          const wantsTearOff = /tear\s*off|remove|replace|re-roof/i.test(prompt) &&
+            !/no\s+tear|overlay|over\s+existing/i.test(prompt);
+
+          const wantsIceShield = /ice\s*shield|ice\s*and\s*water|eave\s*protection/i.test(prompt) ||
+            /Ontario|Quebec|Manitoba|Saskatchewan|Alberta|British Columbia/i.test(provinceValue); // Northern climate default
+
+          const wantsVentilation = /vent|ridge\s*vent|soffit|attic\s*vent/i.test(prompt);
+
+          const wantsSkylight = /skylight|roof\s*window/i.test(prompt);
+
+          const roofPitch = /steep|high\s*pitch|10\/12|12\/12/i.test(prompt) ? 'steep' :
+            (/flat|low\s*slope|2\/12|3\/12/i.test(prompt) ? 'flat' : 'standard');
+
+          // ============ SCOPE CLASSIFICATION ============
+          let scopeType: string;
+          let scopeDescription: string;
+
+          if (isGarage && !wantsTearOff) {
+            scopeType = 'New Garage Roof';
+            scopeDescription = 'New construction garage roofing installation';
+          } else if (isGarage && wantsTearOff) {
+            scopeType = 'Garage Re-Roof';
+            scopeDescription = 'Tear-off and re-roof of existing garage';
+          } else if (wantsTearOff) {
+            scopeType = 'Full Re-Roof';
+            scopeDescription = 'Complete tear-off and new roof installation';
+          } else {
+            scopeType = 'New Roof Installation';
+            scopeDescription = 'New construction roofing installation';
+          }
+
+          // ============ LABOR CALCULATIONS (Crew-Based) ============
+          const journeymanRate = contractorSettings?.journeymanRate || 55; // Roofer rate
+          const apprenticeRate = contractorSettings?.apprenticeRate || 32;
+          const travelRate = contractorSettings?.travelRate || 55;
+
+          // Roofing squares (1 square = 100 sqft)
+          const roofingSquares = Math.ceil(sqft / 100);
+
+          // Labor hours by task
+          const tearOffHoursPerSquare = wantsTearOff ? 0.5 : 0;
+          const shingleHoursPerSquare = material === 'Metal Roofing' ? 1.5 :
+            (material === 'Cedar Shake' ? 2.0 : (material.includes('Tile') ? 2.5 : 0.8));
+          const pitchMultiplier = roofPitch === 'steep' ? 1.4 : (roofPitch === 'flat' ? 0.8 : 1.0);
+
+          const tearOffHours = roofingSquares * tearOffHoursPerSquare * pitchMultiplier;
+          const installHours = roofingSquares * shingleHoursPerSquare * pitchMultiplier;
+          const flashingHours = 3; // Standard flashing work
+          const ventilationHours = wantsVentilation ? 2 : 0;
+          const skylightHours = wantsSkylight ? 3 : 0;
+          const cleanupHours = wantsTearOff ? 2 : 1;
+
+          const totalLaborHours = tearOffHours + installHours + flashingHours + ventilationHours + skylightHours + cleanupHours;
+
+          // Crew size (roofing typically uses 2-3 person crews)
+          const crewSize = roofingSquares > 10 ? 3 : 2;
+          const needsApprentice = true; // Roofing always uses crew
+          const workHoursPerDay = 8;
+          const effectiveHoursPerDay = crewSize * workHoursPerDay * 0.7; // 70% efficiency for crew
+          const projectDays = Math.max(1, Math.ceil(totalLaborHours / effectiveHoursPerDay));
+
+          // Travel
+          const isRemote = /rural|remote|outside|country/i.test(locationValue);
+          const travelHours = isRemote ? 2 : 0.5;
+          const travelCost = Math.round(travelHours * projectDays * travelRate);
+
+          // Labor costs
+          const journeymanHours = projectDays * workHoursPerDay;
+          const apprenticeHours = Math.round(projectDays * workHoursPerDay * (crewSize - 1) * 0.9);
+          const journeymanCost = Math.round(journeymanHours * journeymanRate);
+          const apprenticeCost = Math.round(apprenticeHours * apprenticeRate);
+          const totalLaborCost = journeymanCost + apprenticeCost + travelCost;
+
+          // ============ MATERIAL COSTS (2024 pricing per square) ============
+          const materialCostsPerSquare: Record<string, number> = {
+            'Asphalt Shingles': 120, // Architectural shingles
+            'Metal Roofing': 380,
+            'Tile': 550,
+            'Slate': 800,
+            'EPDM/TPO': 280,
+            'Cedar Shake': 450
+          };
+
+          const costPerSquare = materialCostsPerSquare[material] || 120;
+          const roofingMaterial = roofingSquares * costPerSquare;
+
+          // Underlayment (synthetic is standard now)
+          const underlaymentCost = roofingSquares * 35;
+
+          // Ice & water shield (required in northern climates)
+          const iceShieldCost = wantsIceShield ? Math.ceil(sqft * 0.15) * 12 : 0; // 15% coverage at eaves
+
+          // Flashing & drip edge
+          const flashingCost = isGarage ? 180 : 450;
+
+          // Ridge cap
+          const ridgeCapCost = Math.round(Math.sqrt(sqft) * 0.4) * 25; // Approximate ridge length
+
+          // Ventilation
+          const ventilationCost = wantsVentilation ? 350 : 0;
+
+          // Skylight
+          const skylightCost = wantsSkylight ? 650 : 0;
+
+          // Disposal
+          const disposalCost = wantsTearOff ? roofingSquares * 25 : 0;
+
+          // Misc supplies
+          const miscCost = Math.round((roofingMaterial + underlaymentCost) * 0.06);
+
+          const totalMaterialCost = roofingMaterial + underlaymentCost + iceShieldCost + flashingCost +
+            ridgeCapCost + ventilationCost + skylightCost + disposalCost + miscCost;
+
+          // ============ PERMITS & INSPECTIONS ============
+          const permitCost = isGarage ? 175 : 275;
+          const inspectionCost = isGarage ? 0 : 150; // Roofing inspection not always required
+
+          // ============ OVERHEAD & PROFIT ============
+          const directCosts = totalLaborCost + totalMaterialCost + permitCost + inspectionCost;
+          const overheadPercent = contractorSettings?.overheadPercent || 12;
+          const profitPercent = contractorSettings?.profitPercent || 10;
+          const overheadAmount = Math.round(directCosts * (overheadPercent / 100));
+          const profitAmount = Math.round(directCosts * (profitPercent / 100));
+          const overheadAndProfit = overheadAmount + profitAmount;
+
+          let totalCost = directCosts + overheadAndProfit;
           totalCost = Math.round(totalCost * costMultiplier);
-          const potentialSavings = Math.round(totalCost * 0.15);
-          
-          return `# Roofing Estimate
 
-## Project Details
-- **Location**: ${locationValue || 'Not specified'}
-- **Province**: ${provinceValue}
-- **Material**: ${material}
-- **Roof Size**: ${sqft.toLocaleString()} sq ft
+          // Cost per square foot for reference
+          const costPerSqft = Math.round(totalCost / sqft);
 
-## Detailed Cost Breakdown
+          // Internal profit metrics
+          const grossProfit = totalCost - (totalLaborCost + totalMaterialCost + permitCost + inspectionCost);
+          const profitMargin = Math.round((grossProfit / totalCost) * 100);
+          const riskLevel = profitMargin < 15 ? 'High' : (profitMargin < 20 ? 'Medium' : 'Low');
 
-### Roofing Components
-- **Roofing Material** (${sqft} sq ft @ $${costPerSqft}/sq ft): $${materialCost.toLocaleString()}
-- **Installation Labor** (${sqft} sq ft @ $3/sq ft): $${laborCost.toLocaleString()}
-- **Underlayment**: $${underlayment.toLocaleString()}
-- **Flashing & Trim**: $${flashing.toLocaleString()}
+          // Generate estimate info
+          const estimateNum = `EST-${Date.now().toString(36).toUpperCase()}`;
+          const estimateDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+          const quoteValidDays = contractorSettings?.quoteValidDays || 30;
+          const validUntil = new Date(Date.now() + quoteValidDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
-### Other Costs
-- **Permits**: $${permitCost.toLocaleString()}
-- **Contractor Overhead (20%)**: $${contractorOverhead.toLocaleString()}
+          // Get contractor info
+          const companyName = contractorSettings?.companyName || '';
+          const companyPhone = contractorSettings?.phone || '';
+          const companyEmail = contractorSettings?.email || '';
+          const companyAddress = contractorSettings ?
+            [contractorSettings.address, contractorSettings.city, contractorSettings.province, contractorSettings.postalCode]
+              .filter(Boolean).join(', ') : '';
+          const licenseNumber = contractorSettings?.licenseNumber || '';
 
-## Summary
-- **Total Roofing Cost**: $${totalCost.toLocaleString()} CAD
-- **Cost per Square Foot**: $${Math.round(totalCost / sqft).toLocaleString()}/sq ft
-- **Potential Savings**: $${potentialSavings.toLocaleString()}
-- **Optimized Cost**: $${(totalCost - potentialSavings).toLocaleString()}
+          // Terms
+          const depositPercent = contractorSettings?.depositPercent || 50;
+          const paymentTerms = contractorSettings?.paymentTerms || 'Balance due upon completion and successful inspection';
+          const warrantyYears = contractorSettings?.warrantyYears || 1;
+          const warrantyTerms = contractorSettings?.warrantyTerms || 'Manufacturer warranties apply to all materials.';
 
-${generateCodeComplianceSection(provinceValue, 'roofing')}`;
+          const companyHeader = companyName ? `
+${companyName}
+${companyAddress ? companyAddress + '\n' : ''}${companyPhone ? 'Phone: ' + companyPhone + ' | ' : ''}${companyEmail ? 'Email: ' + companyEmail : ''}
+${licenseNumber ? 'License: ' + licenseNumber : ''}
+
+---
+` : '';
+
+          return `# ROOFING ESTIMATE
+${companyHeader}
+**Estimate #:** ${estimateNum}
+**Date:** ${estimateDate}
+**Valid Until:** ${validUntil}
+
+---
+
+## Project Information
+
+| Field | Details |
+|-------|---------|
+| **Project Type** | ${isGarage ? 'Garage' : 'Residential'} Roofing |
+| **Location** | ${locationValue || 'Not specified'} |
+| **Province** | ${provinceValue} |
+| **Roof Size** | ${sqft.toLocaleString()} sq ft (${roofingSquares} squares) |
+| **Scope Classification** | ${scopeType} |
+
+**Scope:** ${scopeDescription}
+
+---
+
+## Roofing Specifications
+
+| Component | Details |
+|-----------|---------|
+| Material | ${material} |
+| Roof Pitch | ${roofPitch.charAt(0).toUpperCase() + roofPitch.slice(1)} |
+| Tear-Off | ${wantsTearOff ? 'Yes - existing roof removal' : 'No - new construction'} |
+| Underlayment | Synthetic |
+${wantsIceShield ? '| Ice & Water Shield | Eaves & valleys |\n' : ''}${wantsVentilation ? '| Ventilation | Ridge & soffit vents |\n' : ''}${wantsSkylight ? '| Skylight | 1 unit |\n' : ''}| Flashing | All penetrations & edges |
+
+---
+
+## Crew Assignment & Schedule
+
+| | Details |
+|---|---------|
+| **Lead Roofer** | Experienced Journeyman |
+| **Crew Size** | ${crewSize} persons |
+| **Estimated Duration** | ${projectDays} working day${projectDays > 1 ? 's' : ''} (${workHoursPerDay} hrs/day) |
+| **Billable Hours** | ${journeymanHours} + ${apprenticeHours} helper hours |
+| **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
+
+### Work Breakdown Schedule
+
+| Phase | Task | Hours |
+|-------|------|-------|
+${wantsTearOff ? `| 1 | Tear-Off & Disposal | ${tearOffHours.toFixed(1)} hrs |\n` : ''}| ${wantsTearOff ? '2' : '1'} | Underlayment & Prep | ${(installHours * 0.2).toFixed(1)} hrs |
+| ${wantsTearOff ? '3' : '2'} | Roofing Installation | ${(installHours * 0.8).toFixed(1)} hrs |
+| ${wantsTearOff ? '4' : '3'} | Flashing & Details | ${flashingHours.toFixed(1)} hrs |
+${wantsVentilation ? `| ${wantsTearOff ? '5' : '4'} | Ventilation | ${ventilationHours.toFixed(1)} hrs |\n` : ''}${wantsSkylight ? `| ${wantsTearOff ? '6' : '5'} | Skylight Installation | ${skylightHours.toFixed(1)} hrs |\n` : ''}| | Cleanup | ${cleanupHours.toFixed(1)} hrs |
+| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+
+---
+
+## Cost Breakdown
+
+### A. Labor
+
+| Description | Hours | Rate | Amount |
+|-------------|-------|------|--------|
+| Lead Roofer | ${journeymanHours.toFixed(1)} | $${journeymanRate}.00/hr | $${journeymanCost.toLocaleString()}.00 |
+| Helper/Apprentice | ${apprenticeHours.toFixed(1)} | $${apprenticeRate}.00/hr | $${apprenticeCost.toLocaleString()}.00 |
+| Travel Time | ${(travelHours * projectDays).toFixed(1)} | $${travelRate}.00/hr | $${travelCost.toLocaleString()}.00 |
+| **Labor Subtotal** | | | **$${totalLaborCost.toLocaleString()}.00** |
+
+### B. Materials
+
+| Item | Qty | Amount |
+|------|-----|--------|
+| ${material} | ${roofingSquares} sq | $${roofingMaterial.toLocaleString()}.00 |
+| Synthetic Underlayment | ${roofingSquares} sq | $${underlaymentCost.toLocaleString()}.00 |
+${wantsIceShield ? `| Ice & Water Shield | - | $${iceShieldCost.toLocaleString()}.00 |\n` : ''}| Flashing & Drip Edge | - | $${flashingCost.toLocaleString()}.00 |
+| Ridge Cap | - | $${ridgeCapCost.toLocaleString()}.00 |
+${wantsVentilation ? `| Ventilation System | - | $${ventilationCost.toLocaleString()}.00 |\n` : ''}${wantsSkylight ? `| Skylight | 1 | $${skylightCost.toLocaleString()}.00 |\n` : ''}${wantsTearOff ? `| Disposal/Dumpster | - | $${disposalCost.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscCost.toLocaleString()}.00 |
+| **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
+
+### C. Permits & Inspections
+
+| Item | Amount |
+|------|--------|
+| Building Permit | $${permitCost.toLocaleString()}.00 |
+${inspectionCost > 0 ? `| Inspection | $${inspectionCost.toLocaleString()}.00 |\n` : ''}| **Permits Subtotal** | **$${(permitCost + inspectionCost).toLocaleString()}.00** |
+
+### D. Overhead & Profit
+
+| Item | Amount |
+|------|--------|
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+
+---
+
+## ESTIMATE SUMMARY
+
+| Category | Amount |
+|----------|-------:|
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| Overhead & Profit | $${overheadAndProfit.toLocaleString()}.00 |
+| | |
+| **TOTAL PROJECT COST** | **$${totalCost.toLocaleString()}.00 CAD** |
+| **Cost per Sq Ft** | $${costPerSqft}/sq ft |
+
+---
+
+## Terms & Conditions
+
+1. **Payment Terms:** ${depositPercent}% deposit required to schedule work. ${paymentTerms}.
+2. **Warranty:** ${warrantyYears}-year workmanship warranty. ${warrantyTerms}
+3. **Permits:** All permits included in quote.
+4. **Changes:** Any changes to scope will be quoted separately.
+5. **Weather:** Work is weather-dependent. Schedule may adjust for rain/snow.
+6. **Validity:** This estimate is valid for ${quoteValidDays} days from date of issue.
+
+---
+
+## Contractor Requirements (${provinceValue})
+
+- Licensed roofing contractor required
+- ${contractorSettings?.insuranceAmount ? contractorSettings.insuranceAmount : 'Minimum $2M liability insurance'}
+- WSIB/WCB coverage for all workers
+- Fall protection equipment and training
+
+${generateCodeComplianceSection(provinceValue, 'roofing')}
+
+<!-- INTERNAL_START -->
+---
+
+## INTERNAL CONTRACTOR SUMMARY
+**FOR CONTRACTOR USE ONLY - DO NOT INCLUDE IN CUSTOMER QUOTE**
+
+| Metric | Value |
+|--------|-------|
+| **Direct Costs** | $${directCosts.toLocaleString()}.00 |
+| Labor | $${totalLaborCost.toLocaleString()}.00 |
+| Materials | $${totalMaterialCost.toLocaleString()}.00 |
+| Permits & Inspections | $${(permitCost + inspectionCost).toLocaleString()}.00 |
+| | |
+| **Overhead (${overheadPercent}%)** | $${overheadAmount.toLocaleString()}.00 |
+| **Profit (${profitPercent}%)** | $${profitAmount.toLocaleString()}.00 |
+| | |
+| **Gross Profit** | $${grossProfit.toLocaleString()}.00 |
+| **Profit Margin** | ${profitMargin}% |
+| **Risk Level** | ${riskLevel} |
+
+| Risk Assessment |
+|-----------------|
+| Below 15% = High Risk |
+| 15-20% = Medium Risk |
+| Above 20% = Low Risk |
+<!-- INTERNAL_END -->`;
         },
         
         foundation: (prompt: string) => {

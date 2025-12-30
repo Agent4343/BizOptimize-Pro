@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,22 @@ import { hasTradeAccess, TRADES, type Trade } from "@/lib/trade-access";
 import { validateConstructionForm, validateSquareFootage, validateLocation, validateProjectType } from "@/lib/validation";
 import { PROVINCES_AND_TERRITORIES } from "@/lib/provinces";
 import Link from "next/link";
+
+// Helper function to strip internal contractor summary from estimate
+function stripInternalSummary(content: string): string {
+  // Remove content between <!-- INTERNAL_START --> and <!-- INTERNAL_END -->
+  return content.replace(/<!-- INTERNAL_START -->[\s\S]*?<!-- INTERNAL_END -->/g, '').trim();
+}
+
+// Helper function to extract internal summary from estimate
+function extractInternalSummary(content: string): string | null {
+  const match = content.match(/<!-- INTERNAL_START -->([\s\S]*?)<!-- INTERNAL_END -->/);
+  if (match) {
+    // Remove the HTML comment markers and clean up
+    return match[1].replace(/^---\s*/, '').trim();
+  }
+  return null;
+}
 
 // Helper function to get trade-specific prompt
 function getTradeSpecificPrompt(trade: string, formData: any): string {
@@ -96,6 +112,7 @@ function ConstructionPageContent() {
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
   const [currentAnswer, setCurrentAnswer] = useState<string>("");
   const [isReadyToEstimate, setIsReadyToEstimate] = useState(false);
+  const [showInternalSummary, setShowInternalSummary] = useState(true); // Toggle for contractor internal view
   const [basicInfo, setBasicInfo] = useState({
     projectType: "",
     location: "",
@@ -103,6 +120,44 @@ function ConstructionPageContent() {
     projectName: "",
     province: ""
   });
+
+  // Computed values for display
+  const displayResult = useMemo(() => {
+    if (!result) return "";
+    return showInternalSummary ? result : stripInternalSummary(result);
+  }, [result, showInternalSummary]);
+
+  const hasInternalSummary = useMemo(() => {
+    return result ? extractInternalSummary(result) !== null : false;
+  }, [result]);
+
+  // Export customer quote (strips internal summary)
+  const exportCustomerQuote = () => {
+    const customerQuote = stripInternalSummary(result);
+    // Create a blob and download
+    const blob = new Blob([customerQuote], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${formData.projectName || 'estimate'}-quote.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export full estimate (includes internal summary)
+  const exportFullEstimate = () => {
+    const blob = new Blob([result], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${formData.projectName || 'estimate'}-full.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (selectedTrade) {
@@ -657,12 +712,54 @@ Generate a detailed estimate ONLY for the ${selectedTrade} trade with complete l
                     </div>
                     <div className="text-sm text-gray-600">Total Project Cost</div>
                   </div>
+
+                  {/* Toggle for internal summary */}
+                  {hasInternalSummary && (
+                    <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🔒</span>
+                        <div>
+                          <div className="text-sm font-medium text-amber-900">Internal Contractor View</div>
+                          <div className="text-xs text-amber-700">Shows profit margins and risk assessment</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowInternalSummary(!showInternalSummary)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          showInternalSummary ? 'bg-amber-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            showInternalSummary ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  )}
+
                   <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-auto">
-                    <pre className="text-xs whitespace-pre-wrap">{result}</pre>
+                    <pre className="text-xs whitespace-pre-wrap">{displayResult}</pre>
                   </div>
-                  <Button variant="outline" className="w-full">
-                    📄 Export Estimate
-                  </Button>
+
+                  {/* Export buttons */}
+                  <div className="space-y-2">
+                    <Button
+                      onClick={exportCustomerQuote}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      📄 Export Customer Quote
+                    </Button>
+                    {hasInternalSummary && (
+                      <Button
+                        onClick={exportFullEstimate}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        📋 Export Full Estimate (with Internal Summary)
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12">
