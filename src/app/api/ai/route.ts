@@ -432,21 +432,29 @@ export async function POST(request: NextRequest) {
           const switchMaterial = switches * 15; // Switch, box, cover
           const wireMaterial = Math.round(sqft * (isGarage ? 0.45 : 0.70)); // Romex, connectors
 
+          // GFCI protection (required by CEC for all garage receptacles)
+          const gfciCount = isGarage ? Math.ceil(outlets / 4) : Math.ceil(outlets / 6); // 1 GFCI breaker per 4-6 outlets
+          const gfciMaterial = gfciCount * 45; // GFCI breakers at $45 each
+
+          // Grounding and bonding (required for all electrical work)
+          const groundingMaterial = isGarage ? 85 : 150; // Ground rod, clamps, bonding jumpers
+
           // Special equipment materials
           const evChargerMaterial = wantsEVCharger ? 320 : 0; // 50A outlet, 6/3 wire, breaker
           const welderMaterial = wantsWelder ? 280 : 0; // 50A outlet, 6/3 wire, breaker
           const heatPumpMaterial = wantsHeatPump ? 220 : 0; // Disconnect, whip, breaker
           const workshopMaterial = wantsWorkshop ? 150 : 0; // Extra 20A circuits materials
 
-          // Underground run materials (if applicable)
+          // Underground run materials (if applicable) - uses TECK90 cable
           const undergroundMaterial = hasUndergroundRun ? (
-            runLength > 0 ? Math.round(runLength * 12) : 800 // ~$12/ft for conduit + wire, or $800 default
+            runLength > 0 ? Math.round(runLength * 14) : 950 // ~$14/ft for TECK90 + conduit, or $950 default
           ) : 0;
 
           const specialEquipmentMaterial = evChargerMaterial + welderMaterial + heatPumpMaterial + workshopMaterial + undergroundMaterial;
 
           const miscMaterial = Math.round((panelMaterial + circuitMaterial + outletMaterial + switchMaterial) * 0.1); // Misc supplies
-          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial + miscMaterial + specialEquipmentMaterial;
+          const totalMaterialCost = panelMaterial + circuitMaterial + outletMaterial + switchMaterial + wireMaterial +
+            gfciMaterial + groundingMaterial + miscMaterial + specialEquipmentMaterial;
 
           // Other costs
           const permitCost = isGarage ? 250 : 350;
@@ -574,16 +582,18 @@ ${wantsEVCharger ? '| **EV Charger Circuit** | 240V/50A | N/A |\n' : ''}${wantsW
 | **Billable Hours** | ${journeymanHours}${needsApprentice ? ` + ${apprenticeHours} apprentice` : ''} hours |
 | **Travel** | ${travelHours} hr${travelHours > 1 ? 's' : ''} per day${isRemote ? ' (remote surcharge applied)' : ''} |
 
-### Work Breakdown Schedule
+### Work Breakdown Schedule (Task Estimates)
 
-| Phase | Task | Hours |
-|-------|------|-------|
+| Phase | Task | Est. Hours |
+|-------|------|------------|
 | 1 | Panel Installation & Main Feed | ${panelHours} hrs |
 | 2 | Circuit Rough-in (${circuits} circuits) | ${totalCircuitHours} hrs |
-| 3 | Receptacle Installation (${outlets} units) | ${totalOutletHours} hrs |
-| 4 | Switch Installation (${switches} units) | ${totalSwitchHours} hrs |
+| 3 | Receptacle Installation (${outlets} units) | incl. |
+| 4 | Switch Installation (${switches} units) | incl. |
 | 5 | Wiring, Terminations & Testing | ${totalWiringHours} hrs |
-${specialEquipmentHours > 0 ? `| 6 | Special Equipment Installation | ${specialEquipmentHours} hrs |\n` : ''}| | **TOTAL LABOR** | **${totalLaborHours.toFixed(1)} hrs** |
+${specialEquipmentHours > 0 ? `| 6 | Special Equipment Installation | ${specialEquipmentHours} hrs |\n` : ''}| | **TASK TOTAL** | **${totalLaborHours.toFixed(1)} hrs** |
+
+*Task hours represent work scope; billing based on ${projectDays} project days × crew size*
 
 ---
 
@@ -607,7 +617,9 @@ ${needsApprentice ? `| Electrical Apprentice | ${apprenticeHours.toFixed(1)} | $
 | Receptacles, Boxes & Covers | ${outlets} | $${outletMaterial.toLocaleString()}.00 |
 | Switches, Boxes & Covers | ${switches} | $${switchMaterial.toLocaleString()}.00 |
 | NMD90 Wire & Connectors | - | $${wireMaterial.toLocaleString()}.00 |
-${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${evChargerMaterial.toLocaleString()}.00 |\n` : ''}${wantsWelder ? `| Welder Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${welderMaterial.toLocaleString()}.00 |\n` : ''}${wantsHeatPump ? `| Heat Pump Circuit (disconnect, whip, breaker) | 1 | $${heatPumpMaterial.toLocaleString()}.00 |\n` : ''}${wantsWorkshop ? `| Workshop Circuit Materials (20A circuits) | 2 | $${workshopMaterial.toLocaleString()}.00 |\n` : ''}${hasUndergroundRun ? `| Underground Feed (conduit, wire, fittings) | ${runLength > 0 ? runLength + ' ft' : '1'} | $${undergroundMaterial.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
+| GFCI Protection (breakers/receptacles) | ${gfciCount} | $${gfciMaterial.toLocaleString()}.00 |
+| Grounding & Bonding (rod, clamps, jumpers) | 1 | $${groundingMaterial.toLocaleString()}.00 |
+${wantsEVCharger ? `| EV Charger Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${evChargerMaterial.toLocaleString()}.00 |\n` : ''}${wantsWelder ? `| Welder Circuit (50A outlet, 6/3 wire, breaker) | 1 | $${welderMaterial.toLocaleString()}.00 |\n` : ''}${wantsHeatPump ? `| Heat Pump Circuit (disconnect, whip, breaker) | 1 | $${heatPumpMaterial.toLocaleString()}.00 |\n` : ''}${wantsWorkshop ? `| Workshop Circuit Materials (20A circuits) | 2 | $${workshopMaterial.toLocaleString()}.00 |\n` : ''}${hasUndergroundRun ? `| Underground Feed (TECK90 cable, conduit) | ${runLength > 0 ? runLength + ' ft' : '1'} | $${undergroundMaterial.toLocaleString()}.00 |\n` : ''}| Miscellaneous Supplies | - | $${miscMaterial.toLocaleString()}.00 |
 | **Materials Subtotal** | | **$${totalMaterialCost.toLocaleString()}.00** |
 
 ### C. Permits & Inspections
