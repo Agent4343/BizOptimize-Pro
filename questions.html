@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Quiz - Image-Based Questions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4ade80;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .quiz-content {
+            padding: 40px;
+        }
+
+        .question-card {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .question-card.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .question-number {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .question-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .option {
+            padding: 18px 24px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f9fafb;
+            transform: translateX(5px);
+        }
+
+        .option input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #ede9fe;
+        }
+
+        .option.correct {
+            border-color: #4ade80;
+            background: #dcfce7;
+        }
+
+        .option.incorrect {
+            border-color: #f87171;
+            background: #fee2e2;
+        }
+
+        .option.disabled {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .results {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .results h2 {
+            font-size: 2.5rem;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+
+        .score {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+        }
+
+        .score-message {
+            font-size: 1.2rem;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            display: none;
+        }
+
+        .feedback.show {
+            display: block;
+        }
+
+        .feedback.correct {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #4ade80;
+        }
+
+        .feedback.incorrect {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #f87171;
+        }
+
+        @media (max-width: 640px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .quiz-content {
+                padding: 25px;
+            }
+
+            .question-text {
+                font-size: 1.1rem;
+            }
+
+            .buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Interactive Quiz</h1>
+            <p>Test your knowledge with image-based questions</p>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <div class="quiz-content" id="quizContent">
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+
+        <div class="results" id="results">
+            <h2>Quiz Complete! 🎉</h2>
+            <div class="score" id="finalScore">0%</div>
+            <p class="score-message" id="scoreMessage"></p>
+            <button class="btn btn-primary" onclick="restartQuiz()">Restart Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        // Quiz data structure - easily customizable
+        const quizData = [
+            {
+                question: "What type of chart is shown in this image?",
+                image: "https://via.placeholder.com/600x300/667eea/ffffff?text=Bar+Chart+Example",
+                options: [
+                    "Line Chart",
+                    "Bar Chart",
+                    "Pie Chart",
+                    "Scatter Plot"
+                ],
+                correct: 1,
+                explanation: "This is a bar chart, which uses rectangular bars to compare values across categories."
+            },
+            {
+                question: "Which color scheme is predominantly used in this design?",
+                image: "https://via.placeholder.com/600x300/764ba2/ffffff?text=Purple+Gradient+Design",
+                options: [
+                    "Blue and Green",
+                    "Red and Yellow",
+                    "Purple and Violet",
+                    "Orange and Pink"
+                ],
+                correct: 2,
+                explanation: "The design uses a purple and violet color scheme, creating a modern gradient effect."
+            },
+            {
+                question: "What UI pattern is demonstrated in this screenshot?",
+                image: "https://via.placeholder.com/600x300/4ade80/ffffff?text=Card+Layout+Pattern",
+                options: [
+                    "Navigation Menu",
+                    "Card Layout",
+                    "Modal Dialog",
+                    "Dropdown Menu"
+                ],
+                correct: 1,
+                explanation: "This shows a card layout pattern, commonly used to organize content in distinct, contained sections."
+            },
+            {
+                question: "What type of data visualization is most suitable for showing trends over time?",
+                image: "https://via.placeholder.com/600x300/f87171/ffffff?text=Time+Series+Data",
+                options: [
+                    "Pie Chart",
+                    "Line Chart",
+                    "Bar Chart",
+                    "Donut Chart"
+                ],
+                correct: 1,
+                explanation: "Line charts are ideal for showing trends over time as they clearly display continuous data changes."
+            },
+            {
+                question: "Which design principle is being emphasized in this layout?",
+                image: "https://via.placeholder.com/600x300/fbbf24/ffffff?text=Whitespace+Example",
+                options: [
+                    "Contrast",
+                    "Alignment",
+                    "Whitespace",
+                    "Repetition"
+                ],
+                correct: 2,
+                explanation: "Whitespace (negative space) is crucial for creating breathing room and improving readability in designs."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let selectedAnswer = null;
+
+        function initQuiz() {
+            renderQuestion();
+            updateProgress();
+        }
+
+        function renderQuestion() {
+            const quizContent = document.getElementById('quizContent');
+            const question = quizData[currentQuestion];
+            
+            quizContent.innerHTML = `
+                <div class="question-card active">
+                    <div class="question-number">Question ${currentQuestion + 1} of ${quizData.length}</div>
+                    <h2 class="question-text">${question.question}</h2>
+                    <img src="${question.image}" alt="Question image" class="question-image" onerror="this.src='https://via.placeholder.com/600x300/cccccc/666666?text=Image+Not+Available'">
+                    <div class="options" id="options">
+                        ${question.options.map((option, index) => `
+                            <label class="option" data-index="${index}">
+                                <input type="radio" name="answer" value="${index}" onchange="selectAnswer(${index})">
+                                <span>${option}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="feedback" id="feedback"></div>
+                    <div class="buttons">
+                        ${currentQuestion > 0 ? '<button class="btn btn-secondary" onclick="previousQuestion()">Previous</button>' : '<div></div>'}
+                        <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()" disabled>
+                            ${currentQuestion === quizData.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            selectedAnswer = null;
+        }
+
+        function selectAnswer(index) {
+            selectedAnswer = index;
+            document.getElementById('submitBtn').disabled = false;
+            
+            // Visual feedback for selection
+            document.querySelectorAll('.option').forEach((opt, i) => {
+                opt.classList.remove('selected');
+                if (i === index) {
+                    opt.classList.add('selected');
+                }
+            });
+        }
+
+        function submitAnswer() {
+            if (selectedAnswer === null) return;
+            
+            const question = quizData[currentQuestion];
+            const feedback = document.getElementById('feedback');
+            const options = document.querySelectorAll('.option');
+            
+            // Disable all options
+            options.forEach(opt => opt.classList.add('disabled'));
+            
+            // Show correct/incorrect feedback
+            if (selectedAnswer === question.correct) {
+                score++;
+                options[selectedAnswer].classList.add('correct');
+                feedback.className = 'feedback correct show';
+                feedback.textContent = '✓ Correct! ' + question.explanation;
+            } else {
+                options[selectedAnswer].classList.add('incorrect');
+                options[question.correct].classList.add('correct');
+                feedback.className = 'feedback incorrect show';
+                feedback.textContent = '✗ Incorrect. ' + question.explanation;
+            }
+            
+            // Change button behavior
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.textContent = currentQuestion === quizData.length - 1 ? 'View Results' : 'Next Question';
+            submitBtn.onclick = nextQuestion;
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            
+            if (currentQuestion < quizData.length) {
+                renderQuestion();
+                updateProgress();
+            } else {
+                showResults();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                renderQuestion();
+                updateProgress();
+            }
+        }
+
+        function updateProgress() {
+            const progress = ((currentQuestion) / quizData.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function showResults() {
+            document.getElementById('quizContent').style.display = 'none';
+            document.getElementById('results').classList.add('active');
+            
+            const percentage = Math.round((score / quizData.length) * 100);
+            document.getElementById('finalScore').textContent = percentage + '%';
+            document.getElementById('progressBar').style.width = '100%';
+            
+            let message = '';
+            if (percentage === 100) {
+                message = '🏆 Perfect score! You\'re a master!';
+            } else if (percentage >= 80) {
+                message = '🌟 Excellent work! You really know your stuff!';
+            } else if (percentage >= 60) {
+                message = '👍 Good job! Keep practicing!';
+            } else if (percentage >= 40) {
+                message = '📚 Not bad, but there\'s room for improvement!';
+            } else {
+                message = '💪 Keep learning! Practice makes perfect!';
+            }
+            
+            document.getElementById('scoreMessage').textContent = `You scored ${score} out of ${quizData.length}. ${message}`;
+        }
+
+        function restartQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            selectedAnswer = null;
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('quizContent').style.display = 'block';
+            initQuiz();
+        }
+
+        // Initialize quiz on page load
+        window.onload = initQuiz;
+    </script>
+</body>
+</html>
